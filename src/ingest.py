@@ -10,6 +10,9 @@ import pdfplumber            # library for reading PDFs
 from pathlib import Path     # small helper for working with file names/paths
 
 from paths import DATA_DIR
+from logging_setup import get_logger
+
+log = get_logger(__name__)
 
 
 # ---------- 1. READ ONE CSV FILE ----------
@@ -28,7 +31,7 @@ def ingest_csv(file_path):
         }
         records.append(record)           # add this record to our list
 
-    print(f"[CSV] {file_name}: {df.shape[0]} rows, {df.shape[1]} columns")
+    log.info("Loaded CSV %s: %d rows, %d cols", file_name, df.shape[0], df.shape[1])
     return records
 
 
@@ -49,7 +52,7 @@ def ingest_pdf(file_path):
             }
             records.append(record)
 
-    print(f"[PDF] {file_name}: {len(records)} page(s)")
+    log.info("Loaded PDF %s: %d page(s)", file_name, len(records))
     return records
 
 

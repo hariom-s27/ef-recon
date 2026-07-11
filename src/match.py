@@ -12,11 +12,7 @@ from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
 from paths import DATA_DIR
-
-EMBED_MODEL = "nomic-embed-text"
-
-ACCEPT_SCORE   = 0.60
-ESCALATE_SCORE = 0.45
+from config import ACCEPT_SCORE, ESCALATE_SCORE, EMBED_MODEL
 
 
 def embed(text):

@@ -12,6 +12,7 @@ from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
 from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
 from paths import DATA_DIR
+from logging_setup import setup_logging
 
 
 # ---------- 1) load the answer key ----------
@@ -54,6 +55,7 @@ def predict(record, factors):
 
 
 def main():
+    setup_logging()
     print("Loading factors + gold key...")
     factors = load_factors()
     gold = load_gold()
