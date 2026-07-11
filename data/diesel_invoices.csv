@@ -1,0 +1,11 @@
+line_id,Vendor,Invoice Date,Product,Quantity,Qty Unit,Rate (INR)
+DSL-0001,HPCL,01-Jun-2025,Diesel,2076,L,183572.96
+DSL-0002,HPCL,01-Mar-2025,DG Set Diesel,2791,L,256969.24
+DSL-0003,Bharat Petroleum,01-Mar-2025,Diesel,5089,L,470031.68
+DSL-0004,Indian Oil,01-May-2025,Diesel,5510,L,493712.32
+DSL-0005,Reliance Petro,01-Sep-2025,HSD,1.49,KL,140724.06
+DSL-0006,Bharat Petroleum,01-Oct-2025,HSD,7987,L,729156.15
+DSL-0007,Reliance Petro,01-Nov-2025,HSD,3495,L,317469.96
+DSL-0008,Indian Oil,01-Oct-2025,DG Set Diesel,2.182,KL,201826.44
+DSL-0009,Indian Oil,01-Jan-2025,HSD,0.317,KL,30212.84
+DSL-0010,Reliance Petro,01-Mar-2025,Diesel,8.623,KL,811034.92

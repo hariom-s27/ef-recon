@@ -1,0 +1,31 @@
+line_id,activity,quantity,unit,factor_id,factor_value,emissions_kgco2e,match_type,source
+ELEC-0001,electricity,36098.0,kWh,EF-IN-ELEC-GRID,0.7117,25690.947,exact,electricity_bills.csv row 2
+ELEC-0002,electricity,7905.0,kWh,EF-IN-ELEC-GRID,0.7117,5625.989,exact,electricity_bills.csv row 3
+ELEC-0003,electricity,58987.0,kWh,EF-IN-ELEC-GRID,0.7117,41981.048,exact,electricity_bills.csv row 4
+ELEC-0004,electricity,40421.0,kWh,EF-IN-ELEC-GRID,0.7117,28767.626,exact,electricity_bills.csv row 5
+ELEC-0005,electricity,83131.0,kWh,EF-IN-ELEC-GRID,0.7117,59164.333,exact,electricity_bills.csv row 6
+ELEC-0006,electricity,42427.0,kWh,EF-IN-ELEC-GRID,0.7117,30195.296,exact,electricity_bills.csv row 7
+ELEC-0007,electricity,41930.0,kWh,EF-IN-ELEC-GRID,0.7117,29841.581,exact,electricity_bills.csv row 8
+ELEC-0008,electricity,52520.0,kWh,EF-IN-ELEC-GRID,0.7117,37378.484,exact,electricity_bills.csv row 9
+ELEC-0009,electricity,74010.0,kWh,EF-IN-ELEC-GRID,0.7117,52672.917,exact,electricity_bills.csv row 10
+ELEC-0010,electricity,34021.0,kWh,EF-IN-ELEC-GRID,0.7117,24212.746,exact,electricity_bills.csv row 11
+ELEC-0011,electricity,31869.0,kWh,EF-IN-ELEC-GRID,0.7117,22681.167,exact,electricity_bills.csv row 12
+ELEC-0012,electricity,74644.0,kWh,EF-IN-ELEC-GRID,0.7117,53124.135,exact,electricity_bills.csv row 13
+ELEC-0013,electricity,15915.0,kWh,EF-IN-ELEC-GRID,0.7117,11326.706,exact,electricity_bills.csv row 14
+ELEC-0014,electricity,54019.0,kWh,EF-IN-ELEC-GRID,0.7117,38445.322,exact,electricity_bills.csv row 15
+ELEC-0015,electricity,40421.0,kWh,EF-IN-ELEC-GRID,0.7117,28767.626,exact,electricity_bills.csv row 16
+DSL-0001,diesel,2076.0,litre,EF-DIESEL-L,2.51,5210.760,exact,diesel_invoices.csv row 2
+DSL-0002,diesel,2791.0,litre,EF-DIESEL-L,2.51,7005.410,exact,diesel_invoices.csv row 3
+DSL-0003,diesel,5089.0,litre,EF-DIESEL-L,2.51,12773.390,exact,diesel_invoices.csv row 4
+DSL-0004,diesel,5510.0,litre,EF-DIESEL-L,2.51,13830.100,exact,diesel_invoices.csv row 5
+DSL-0005,diesel,1490.0,litre,EF-DIESEL-L,2.51,3739.900,exact,diesel_invoices.csv row 6
+DSL-0006,diesel,7987.0,litre,EF-DIESEL-L,2.51,20047.370,exact,diesel_invoices.csv row 7
+DSL-0007,diesel,3495.0,litre,EF-DIESEL-L,2.51,8772.450,exact,diesel_invoices.csv row 8
+DSL-0008,diesel,2182.0,litre,EF-DIESEL-L,2.51,5476.820,exact,diesel_invoices.csv row 9
+DSL-0009,diesel,317.0,litre,EF-DIESEL-L,2.51,795.670,exact,diesel_invoices.csv row 10
+DSL-0010,diesel,8623.0,litre,EF-DIESEL-L,2.51,21643.730,exact,diesel_invoices.csv row 11
+ERP-0001,electricity,35976.0,kWh,EF-IN-ELEC-GRID,0.7117,25604.119,exact,erp_spend_export.csv row 2
+ERP-0002,natural gas,1295.0,m3,EF-NATGAS-M3,2.04,2641.800,exact,erp_spend_export.csv row 3
+ERP-0003,lpg,534.0,litre,EF-LPG-L,1.557,831.438,semantic,erp_spend_export.csv row 4
+ERP-0004,petrol,496.0,litre,EF-PETROL-L,2.09,1036.640,exact,erp_spend_export.csv row 5
+PDF-p1,electricity,23450.0,kWh,EF-IN-ELEC-GRID,0.7117,16689.365,exact,electricity_bill_sample.pdf page 1

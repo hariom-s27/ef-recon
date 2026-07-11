@@ -1,0 +1,20 @@
+# Virtual environment (never push this - it's huge & machine-specific)
+.venv/
+venv/
+env/
+
+# Python junk
+__pycache__/
+*.py[cod]
+
+# Secrets (never push keys)
+.env
+.streamlit/secrets.toml
+
+# Editor
+.vscode/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db

@@ -1,0 +1,33 @@
+line_id,source_file,raw_description,correct_factor_id,canonical_qty,canonical_unit,expected_kgco2e,messiness_tags
+ELEC-0001,electricity_bills.csv,Torrent Power Energy (Units)=36.098 MWh,EF-IN-ELEC-GRID,36098,kWh,25690.947,header_variation|unit_mwh_not_kwh
+ELEC-0002,electricity_bills.csv,Torrent Power Units Consumed=7.905 MWh,EF-IN-ELEC-GRID,7905,kWh,5625.989,header_variation|unit_mwh_not_kwh
+ELEC-0003,electricity_bills.csv,BESCOM Consumption=58.987 MWh,EF-IN-ELEC-GRID,58987,kWh,41981.048,header_variation|unit_mwh_not_kwh
+ELEC-0004,electricity_bills.csv,Tata Power-DDL Energy (Units)=40.421 MWh,EF-IN-ELEC-GRID,40421,kWh,28767.626,header_variation|unit_mwh_not_kwh
+ELEC-0005,electricity_bills.csv,CESC Energy (Units)=83131 kWh,EF-IN-ELEC-GRID,83131,kWh,59164.333,header_variation|missing_period
+ELEC-0006,electricity_bills.csv,Torrent Power Consumption=42427 kWh,EF-IN-ELEC-GRID,42427,kWh,30195.296,header_variation
+ELEC-0007,electricity_bills.csv,Torrent Power kWh=41930 kWh,EF-IN-ELEC-GRID,41930,kWh,29841.581,header_variation
+ELEC-0008,electricity_bills.csv,DHBVN kWh=52520 kWh,EF-IN-ELEC-GRID,52520,kWh,37378.484,header_variation
+ELEC-0009,electricity_bills.csv,Torrent Power kWh=74010 kWh,EF-IN-ELEC-GRID,74010,kWh,52672.917,header_variation
+ELEC-0010,electricity_bills.csv,BESCOM Units Consumed=34021 kWh,EF-IN-ELEC-GRID,34021,kWh,24212.746,header_variation
+ELEC-0011,electricity_bills.csv,BESCOM Energy (Units)=31869 kWh,EF-IN-ELEC-GRID,31869,kWh,22681.167,header_variation
+ELEC-0012,electricity_bills.csv,Adani Electricity Consumption=74644 kWh,EF-IN-ELEC-GRID,74644,kWh,53124.135,header_variation
+ELEC-0013,electricity_bills.csv,BESCOM Net Units Billed=15915 kWh,EF-IN-ELEC-GRID,15915,kWh,11326.706,header_variation
+ELEC-0014,electricity_bills.csv,CESC Net Units Billed=54019 kWh,EF-IN-ELEC-GRID,54019,kWh,38445.322,header_variation
+ELEC-0015,electricity_bills.csv,EXACT DUPLICATE of ELEC-0004,EF-IN-ELEC-GRID,0,kWh,0.0,duplicate_row|should_be_deduped
+DSL-0001,diesel_invoices.csv,Diesel 2076 L,EF-DIESEL-L,2076,litre,5210.76,fuel_name_variation
+DSL-0002,diesel_invoices.csv,DG Set Diesel 2791 L,EF-DIESEL-L,2791,litre,7005.41,fuel_name_variation
+DSL-0003,diesel_invoices.csv,Diesel 5089 L,EF-DIESEL-L,5089,litre,12773.39,fuel_name_variation
+DSL-0004,diesel_invoices.csv,Diesel 5510 L,EF-DIESEL-L,5510,litre,13830.1,fuel_name_variation
+DSL-0005,diesel_invoices.csv,HSD 1.49 KL,EF-DIESEL-L,1490,litre,3739.9,fuel_name_variation|unit_kilolitre
+DSL-0006,diesel_invoices.csv,HSD 7987 L,EF-DIESEL-L,7987,litre,20047.37,fuel_name_variation
+DSL-0007,diesel_invoices.csv,HSD 3495 L,EF-DIESEL-L,3495,litre,8772.45,fuel_name_variation
+DSL-0008,diesel_invoices.csv,DG Set Diesel 2.182 KL,EF-DIESEL-L,2182,litre,5476.82,fuel_name_variation|unit_kilolitre
+DSL-0009,diesel_invoices.csv,HSD 0.317 KL,EF-DIESEL-L,317,litre,795.67,fuel_name_variation|unit_kilolitre
+DSL-0010,diesel_invoices.csv,Diesel 8.623 KL,EF-DIESEL-L,8623,litre,21643.73,fuel_name_variation|unit_kilolitre
+ERP-0001,erp_spend_export.csv,Electricity charges - Unit 1,EF-IN-ELEC-GRID,35976,kWh,25604.119,clean
+ERP-0002,erp_spend_export.csv,PNG (piped natural gas) consumption,EF-NATGAS-M3,1295,m3,2641.8,clean
+ERP-0003,erp_spend_export.csv,LPG cylinders - canteen,EF-LPG-L,534,litre,831.438,confirm_litre_vs_kg
+ERP-0004,erp_spend_export.csv,Petrol reimbursement - sales cars,EF-PETROL-L,496,litre,1036.64,clean
+ERP-0005,erp_spend_export.csv,Printer cartridges & stationery,NO_FACTOR,,lot,,noise_non_energy|must_not_map
+ERP-0006,erp_spend_export.csv,Management consultancy fees,NO_FACTOR,,lot,,noise_non_energy|must_not_map
+ERP-0007,erp_spend_export.csv,Fuel expenses (mixed vehicles),ESCALATE,,litre,,ambiguous_fuel|should_escalate

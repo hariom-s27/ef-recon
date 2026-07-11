@@ -1,0 +1,16 @@
+line_id,DISCOM,Site,Billing Period,Units Consumed,kWh,Energy (Units),Net Units Billed,Consumption,Unit,Amount (INR)
+ELEC-0001,Torrent Power,KNP-01,01-Nov-2025,,,36.098,,,MWh,302684.2
+ELEC-0002,Torrent Power,Central WH Delhi,01-Oct-2025,7.905,,,,,MWh,57251.63
+ELEC-0003,BESCOM,DEL-WH,01-Jan-2025,,,,,58.987,MWh,496322.03
+ELEC-0004,Tata Power-DDL,Central WH Delhi,01-Jun-2025,,,40.421,,,MWh,297641.51
+ELEC-0005,CESC,Unit 1 Kanpur,,,,83131,,,kWh,659651.12
+ELEC-0006,Torrent Power,Plant-2,01-Jun-2025,,,,,42427,kWh,344666.91
+ELEC-0007,Torrent Power,KNP-01,01-Feb-2025,,41930,,,,kWh,327397.91
+ELEC-0008,DHBVN,Central WH Delhi,01-Dec-2025,,52520,,,,kWh,456852.96
+ELEC-0009,Torrent Power,DEL-WH,01-Jul-2025,,74010,,,,kWh,564838.14
+ELEC-0010,BESCOM,Central WH Delhi,01-Jul-2025,34021,,,,,kWh,259525.3
+ELEC-0011,BESCOM,DEL-WH,01-Nov-2025,,,31869,,,kWh,252853.84
+ELEC-0012,Adani Electricity,Plant-1,01-Oct-2025,,,,,74644,kWh,585137.36
+ELEC-0013,BESCOM,KNP-01,01-Mar-2025,,,,15915,,kWh,130565.29
+ELEC-0014,CESC,Warehouse,01-May-2025,,,,54019,,kWh,472867.49
+ELEC-0015,Tata Power-DDL,Central WH Delhi,01-Jun-2025,,,40.421,,,MWh,297641.51
