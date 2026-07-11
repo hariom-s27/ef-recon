@@ -1,36 +1,45 @@
 """
-api.py — SP-11: a web API for the EF-Recon engine (FastAPI).
-Other programs send bill data as JSON -> get back emissions + factor + confidence.
-Reuses the existing pipeline (no new logic).
+api.py — SP-12: upgraded EF-Recon API (FastAPI).
+Improvements: self-documenting endpoints, example values, proper error handling,
+a /batch endpoint for many lines, and traceability in the response.
 
-Run:  uvicorn api:app --reload   (from inside the src/ folder)
-Then open http://127.0.0.1:8000/docs  to test it in your browser.
+Run:  cd src && python -m uvicorn api:app --reload
+Docs: http://127.0.0.1:8000/docs
 """
 
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 
 from normalize import normalize_line
 from extract import ExtractedLine
-from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
+from config import ACCEPT_SCORE, ESCALATE_SCORE
+from match import load_factors, exact_match, semantic_match
 from compute import compute_emissions
 
-app = FastAPI(title="EF-Recon API", description="Turn a bill line into audit-ready carbon numbers.")
+app = FastAPI(
+    title="EF-Recon API",
+    description="Turn messy bill lines into audit-ready carbon numbers, "
+                "with the matched factor, computed emissions, confidence, and full traceability.",
+    version="1.0.0",
+)
 
-# load the factor library ONCE when the server starts (not on every request = fast)
-FACTORS = load_factors()
+FACTORS = load_factors()   # loaded once at startup (fast)
 
 
-# ---------- what a request looks like ----------
+# ---------- request model (with examples + descriptions) ----------
 class BillLine(BaseModel):
-    activity: str                       # e.g. "electricity"
-    quantity: float                     # e.g. 36098
-    unit: str                           # e.g. "kWh"
-    period: Optional[str] = None
+    activity: str = Field(..., description="Activity type, e.g. electricity, diesel, petrol",
+                          examples=["electricity"])
+    quantity: float = Field(..., description="Numeric amount used (must be > 0)",
+                            examples=[36098])
+    unit: str = Field(..., description="Unit, e.g. kWh, MWh, litre, KL, m3",
+                      examples=["kWh"])
+    period: Optional[str] = Field(None, description="Billing period or date",
+                                  examples=["01-Jun-2025"])
 
 
-# ---------- what a response looks like ----------
+# ---------- response model (now includes traceability) ----------
 class Result(BaseModel):
     activity: str
     quantity: float
@@ -38,37 +47,26 @@ class Result(BaseModel):
     factor_id: Optional[str] = None
     factor_value: Optional[float] = None
     emissions_kgco2e: Optional[float] = None
-    decision: str                        # accept / escalate / refuse
-    match_type: str                      # exact / semantic / none
+    decision: str                              # accept / escalate / refuse
+    match_type: str                            # exact / semantic / none
+    confidence: float
+    trace: Optional[str] = None                # the audit trail (formula + factor)
 
 
-# ---------- endpoint 0: friendly root ----------
-@app.get("/")
-def home():
-    return {"message": "EF-Recon API is running. Go to /docs to try it."}
+# ---------- the shared engine logic ----------
+def _process_line(line: BillLine) -> Result:
+    # validation -> clean error instead of a crash
+    if line.quantity <= 0:
+        raise HTTPException(status_code=422, detail="quantity must be greater than 0")
 
-
-# ---------- endpoint 1: health check ----------
-@app.get("/health")
-def health():
-    """Simple 'are you alive?' check."""
-    return {"status": "ok", "factors_loaded": len(FACTORS)}
-
-
-# ---------- endpoint 2: compute emissions for one bill line ----------
-@app.post("/compute", response_model=Result)
-def compute(line: BillLine):
-    # turn the request into the same shape our pipeline uses
     extracted = ExtractedLine(activity=line.activity, quantity=line.quantity,
                               unit=line.unit, period=line.period)
     norm = normalize_line(extracted)
 
-    # noise / no unit -> refuse
     if norm.activity == "unknown" or norm.unit is None:
         return Result(activity=norm.activity, quantity=line.quantity, unit=line.unit,
-                      decision="refuse", match_type="none")
+                      decision="refuse", match_type="none", confidence=0.0)
 
-    # match: exact first, else semantic
     fac = exact_match(norm, FACTORS)
     if fac:
         confidence, match_type = 1.0, "exact"
@@ -81,10 +79,58 @@ def compute(line: BillLine):
 
     if decision == "accept":
         emissions = float(compute_emissions(norm.quantity, fac["value"]))
+        trace = (f"{norm.quantity} {norm.unit} × {fac['value']} "
+                 f"(factor {fac['factor_id']}) = {emissions} kgCO2e")
         return Result(activity=norm.activity, quantity=norm.quantity, unit=norm.unit,
                       factor_id=fac["factor_id"], factor_value=fac["value"],
-                      emissions_kgco2e=emissions, decision=decision, match_type=match_type)
-    else:
-        return Result(activity=norm.activity, quantity=norm.quantity, unit=norm.unit,
-                      factor_id=fac["factor_id"] if fac else None,
-                      decision=decision, match_type=match_type)
+                      emissions_kgco2e=emissions, decision=decision,
+                      match_type=match_type, confidence=round(confidence, 3), trace=trace)
+
+    return Result(activity=norm.activity, quantity=norm.quantity, unit=norm.unit,
+                  factor_id=fac["factor_id"] if fac else None,
+                  decision=decision, match_type=match_type, confidence=round(confidence, 3))
+
+
+# ---------- endpoints ----------
+@app.get("/", summary="Welcome")
+def home():
+    return {"message": "EF-Recon API is running. Open /docs to try it."}
+
+
+@app.get("/health", summary="Health check",
+         description="Returns 'ok' and how many emission factors are loaded.")
+def health():
+    return {"status": "ok", "factors_loaded": len(FACTORS)}
+
+
+@app.post("/compute", response_model=Result,
+          summary="Compute emissions for ONE bill line",
+          description="Takes a single activity line and returns the matched factor, "
+                      "computed emissions, confidence, decision, and a traceability string.")
+def compute(line: BillLine):
+    return _process_line(line)
+
+
+@app.post("/batch",
+          summary="Compute emissions for MANY bill lines at once",
+          description="Takes a list of activity lines. Returns each result plus the "
+                      "total accepted emissions and a small summary.")
+def batch(lines: List[BillLine]):
+    if not lines:
+        raise HTTPException(status_code=422, detail="send at least one line")
+
+    results, total, accepted = [], 0.0, 0
+    for line in lines:
+        r = _process_line(line)
+        results.append(r)
+        if r.decision == "accept" and r.emissions_kgco2e:
+            total += r.emissions_kgco2e
+            accepted += 1
+
+    return {
+        "total_kgco2e": round(total, 3),
+        "total_tco2e": round(total / 1000, 3),
+        "lines_received": len(lines),
+        "lines_accepted": accepted,
+        "results": results,
+    }
