@@ -1,6 +1,7 @@
 """
 app.py — SP-12: polished EF-Recon dashboard (demo centerpiece).
 Same engine underneath — restructured with metrics, charts, tabs, and colour.
+Now with a "Real filing" tab: runs the engine on a real Tata Motors BRSR PDF.
 Run:  python -m streamlit run src/app.py
 """
 
@@ -16,6 +17,7 @@ from normalize import normalize_line
 from match import load_factors, exact_match, semantic_match
 from compute import compute_emissions
 from dedup import fingerprint, get_site
+from brsr_ingest import ingest_brsr_energy, GJ_TO_KWH, CEA_FACTOR
 
 st.set_page_config(page_title="EF-Recon", page_icon="🌱", layout="wide")
 
@@ -31,6 +33,12 @@ h1 { color: #166534; }
 @st.cache_resource
 def get_factors():
     return load_factors()
+
+
+@st.cache_data
+def load_brsr(path):
+    """Parse the BRSR PDF once and cache it (the 111-page read is slow)."""
+    return ingest_brsr_energy(path)
 
 
 def process(records, factors):
@@ -118,14 +126,15 @@ n_dupes = int((df["decision"] == "duplicate").sum())
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Total emissions", f"{total:,.0f} kgCO₂e", f"{total/1000:,.2f} tCO₂e")
-c2.metric("Factor-match accuracy", "100%", "Precision@1 (n=29)")
+c2.metric("Factor-match accuracy", "100%", "synthetic set (n=29) — see Real filing tab")
 c3.metric("Duplicates caught", n_dupes, "removed from total")
 c4.metric("Needs review", n_review, "escalated / refused")
 
 st.divider()
 
 # ---- tabs ----
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "📋 Details", "🔍 Explain", "⚠️ Review queue"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    ["📊 Overview", "📋 Details", "🔍 Explain", "⚠️ Review queue", "🏢 Real filing"])
 
 with tab1:
     left, right = st.columns(2)
@@ -175,3 +184,55 @@ with tab4:
                      .style.map(colour_decision, subset=["decision"]),
                      use_container_width=True)
         st.caption("Escalated = unclear (needs a human). Refused = noise. Duplicate = already counted.")
+
+with tab5:
+    st.subheader("Real BRSR filing — Tata Motors FY2024-25")
+    st.caption("The engine on a real 111-page regulatory PDF — no hardcoded page, no LLM. "
+               "It finds the Principle 6 energy table itself, catches a real double-count, "
+               "and recomputes Scope 2 with source-page lineage.")
+
+    brsr_path = DATA_DIR / "Voluntary-Report-based-on-BRSR-Framework-for-FY-2024-25.pdf"
+
+    if not brsr_path.exists():
+        st.warning("Place the Tata Motors BRSR PDF in the data/ folder to run this panel.")
+    else:
+        recs = load_brsr(str(brsr_path))
+
+        # ---- Step 1: what the engine extracted, and from where ----
+        st.markdown("##### 1. Auto-extracted energy table (found by keyword, not page number)")
+        brsr_df = pd.DataFrame(recs)[
+            ["entity", "source_page", "nonrenew_elec_gj", "nonrenew_fuel_gj", "total_energy_gj"]]
+        brsr_df.columns = ["Entity", "Source page", "Grid electricity (GJ)",
+                           "Fuel (GJ)", "Total energy (GJ)"]
+        st.dataframe(brsr_df, use_container_width=True, hide_index=True)
+
+        # ---- Step 2: the dedup catch ----
+        st.markdown("##### 2. Duplication check")
+        parts = [r for r in recs if r["entity"] in ("TML", "TMPVL+TPEML")]
+        combined = next((r for r in recs if r["entity"] and "combined" in r["entity"]), None)
+        if combined and len(parts) >= 2:
+            sum_elec = sum((p.get("nonrenew_elec_gj") or 0) for p in parts)
+            comb_elec = combined.get("nonrenew_elec_gj") or 0
+            cc1, cc2 = st.columns(2)
+            cc1.metric("Sum of parts (TML + TMPVL+TPEML)", f"{sum_elec:,.0f} GJ")
+            cc2.metric("Combined block reported", f"{comb_elec:,.0f} GJ")
+            if comb_elec and abs(sum_elec - comb_elec) / comb_elec < 0.01:
+                st.error("⚠️ **Double-count detected** — the filing reports both the parts *and* "
+                         "their combined total. Counting all three would inflate emissions ~2×. "
+                         "The engine counts it **once**.")
+
+        # ---- Step 3: the recompute with lineage ----
+        st.markdown("##### 3. Scope 2 recompute (grid electricity × CEA factor)")
+        rows = []
+        for r in recs:
+            gj = r.get("nonrenew_elec_gj")
+            if gj is None:
+                continue
+            mwh = gj * GJ_TO_KWH / 1000
+            rows.append({"Entity": r["entity"], "Source page": r["source_page"],
+                         "Grid (GJ)": f"{gj:,.0f}", "→ MWh": f"{mwh:,.0f}",
+                         "→ tCO₂e (Scope 2)": f"{mwh * CEA_FACTOR:,.0f}"})
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.caption(f"Location-based Scope 2 using CEA v21 grid factor ({CEA_FACTOR} tCO₂/MWh), "
+                   "traced to the exact source page. Note: the company's *market-based* figure is "
+                   "lower — ~46% of their electricity is renewable (two valid GHG Protocol methods).")
