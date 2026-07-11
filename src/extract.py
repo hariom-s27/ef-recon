@@ -33,8 +33,10 @@ ACTIVITY_KEYWORDS = {
     "electricity": ["electricity", "kwh", "power", "energy charges"],
     "diesel":      ["diesel", "hsd"],
     "petrol":      ["petrol", "gasoline", "motor spirit"],
+    "cng":         ["cng", "compressed natural gas"],
     "natural gas": ["natural gas", "png", "piped natural gas"],
     "lpg":         ["lpg", "cooking gas", "propane"],
+    "coal":        ["coal", "steam coal", "thermal coal"],
 }
 
 def find_first(raw, columns):

@@ -37,6 +37,10 @@ def factor_activity_type(row):
         return "lpg"
     if "petrol" in text or "gasoline" in text:
         return "petrol"
+    if "cng" in text or "compressed natural gas" in text:
+        return "cng"
+    if "coal" in text:
+        return "coal"
     if "natural gas" in text or "png" in text:
         return "natural gas"
     return row["activity"].strip().lower()

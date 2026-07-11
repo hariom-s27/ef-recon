@@ -117,6 +117,8 @@ def factor_activity_type(row):
         ("diesel",      ["diesel", "hsd"]),
         ("petrol",      ["petrol", "gasoline", "motor spirit"]),
         ("lpg",         ["lpg", "propane", "cooking gas"]),
+        ("cng",         ["cng", "compressed natural gas"]),
+        ("coal",        ["coal", "steam coal", "thermal coal"]),
         ("natural gas", ["natural gas", "png", "piped natural gas"]),
     ]
     for activity, words in checks:
@@ -125,13 +127,21 @@ def factor_activity_type(row):
                 return activity
     return row["activity"].strip().lower()
 
+# factors that share an (activity, unit) key with a more general factor but need extra
+# context (on-site/renewable, specific fuel path) the pipeline doesn't extract yet —
+# excluded from the default hard-rule lookup so they can't silently shadow the general one
+AMBIGUOUS_FACTOR_IDS = {
+    "EF-IN-ELEC-GRID-CM",  # Combined Margin - CDM accounting only, not corporate Scope 2
+    "EF-IN-ELEC-SOLAR",    # on-site solar - same (electricity, kwh) key as grid, would zero out emissions
+    "EF-PNG-KWH",          # India-specific PNG-by-energy - same (natural gas, kwh) key as EF-NATGAS-KWH
+}
+
 def load_rules_into_graph(g):
     """Read the factor library and store activity->factor rules in the graph."""
     g.clear()
     with open(DATA_DIR / "emission_factors.csv", newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
-            # skip the Combined-Margin electricity factor (not for corporate Scope 2)
-            if row["factor_id"] == "EF-IN-ELEC-GRID-CM":
+            if row["factor_id"] in AMBIGUOUS_FACTOR_IDS:
                 continue
             activity = factor_activity_type(row)
             unit = row["unit_in"].strip().lower()
