@@ -9,13 +9,11 @@ We KEEP the original quantity+unit too, so the audit trail shows both.
 """
 
 from typing import Optional
-from pathlib import Path
 from pydantic import BaseModel, Field
 
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm, ExtractedLine
-
-DATA_DIR = Path(__file__).parent.parent / "data"
+from paths import DATA_DIR
 
 
 # ---------- the clean, normalized shape ----------

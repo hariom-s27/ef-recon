@@ -5,16 +5,13 @@ checks and a list of hard cases (what we got wrong).
 """
 
 import csv
-from pathlib import Path
 from statsmodels.stats.proportion import proportion_confint
 
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
 from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
-
-BASE_DIR = Path(__file__).parent.parent
-DATA_DIR = BASE_DIR / "data"
+from paths import DATA_DIR
 
 
 # ---------- 1) load the answer key ----------

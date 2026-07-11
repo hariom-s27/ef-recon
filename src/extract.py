@@ -6,12 +6,11 @@ Hardened so ONE bad row never crashes the whole run.
 
 import re
 from typing import Optional
-from pathlib import Path
 from pydantic import BaseModel, Field
 
 from ingest import ingest_csv, ingest_pdf
+from paths import DATA_DIR
 
-DATA_DIR = Path(__file__).parent.parent / "data"
 OLLAMA_MODEL = "qwen3:1.7b"   # a fast small model from your `ollama list`
 
 

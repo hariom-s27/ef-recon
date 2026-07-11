@@ -26,6 +26,6 @@ DSL-0009,diesel,317.0,litre,EF-DIESEL-L,2.51,795.670,exact,diesel_invoices.csv r
 DSL-0010,diesel,8623.0,litre,EF-DIESEL-L,2.51,21643.730,exact,diesel_invoices.csv row 11
 ERP-0001,electricity,35976.0,kWh,EF-IN-ELEC-GRID,0.7117,25604.119,exact,erp_spend_export.csv row 2
 ERP-0002,natural gas,1295.0,m3,EF-NATGAS-M3,2.04,2641.800,exact,erp_spend_export.csv row 3
-ERP-0003,lpg,534.0,litre,EF-LPG-L,1.557,831.438,semantic,erp_spend_export.csv row 4
+ERP-0003,lpg,534.0,litre,EF-LPG-L,1.557,831.438,exact,erp_spend_export.csv row 4
 ERP-0004,petrol,496.0,litre,EF-PETROL-L,2.09,1036.640,exact,erp_spend_export.csv row 5
 PDF-p1,electricity,23450.0,kWh,EF-IN-ELEC-GRID,0.7117,16689.365,exact,electricity_bill_sample.pdf page 1

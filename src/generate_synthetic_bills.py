@@ -16,18 +16,15 @@ Out:  ./data/*.csv  and  ./data/electricity_bill_sample.pdf (if reportlab instal
 """
 
 import csv, os, random, datetime
-from pathlib import Path
+
+from paths import DATA_DIR as DATA
 
 SEED = 42                     # deterministic => reproducible gold set
 random.seed(SEED)
 
-HERE = Path(__file__).parent
-DATA = HERE / "data"
-DATA.mkdir(exist_ok=True)
-
 # ---- load the factor library (single source of truth for values) -------------
 FACTORS = {}
-with open(HERE / "emission_factors.csv", newline="", encoding="utf-8") as f:
+with open(DATA / "emission_factors.csv", newline="", encoding="utf-8") as f:
     for row in csv.DictReader(f):
         FACTORS[row["factor_id"]] = row
 def factor_val(fid): return float(FACTORS[fid]["factor_kgco2e_per_unit"])

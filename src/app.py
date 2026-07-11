@@ -6,16 +6,13 @@ Run:  streamlit run app.py
 
 import pandas as pd
 import streamlit as st
-from pathlib import Path
 
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
 from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
 from compute import compute_emissions
-
-BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
+from paths import BASE_DIR, DATA_DIR
 
 st.set_page_config(page_title="EF-Recon", page_icon="🌱", layout="wide")
 
@@ -100,7 +97,7 @@ c3.metric("Needs review / refused",
 # --- main results table ---
 st.subheader("Results")
 st.dataframe(df[["line_id", "activity", "quantity", "unit", "factor_id",
-                 "emissions_kgco2e", "decision", "source"]], use_container_width=True)
+                 "emissions_kgco2e", "decision", "source"]], width="stretch")
 
 # --- explain this number ---
 st.subheader("🔍 Explain a number")
@@ -116,5 +113,8 @@ if not accepted.empty:
 # --- review queue ---
 st.subheader("⚠️ Review queue (uncertain lines)")
 queue = df[df["decision"].isin(["escalate", "refuse"])]
-st.dataframe(queue[["line_id", "activity", "unit", "decision", "source"]],
-             use_container_width=True) if not queue.empty else st.write("Nothing to review 🎉")
+if not queue.empty:
+    st.dataframe(queue[["line_id", "activity", "unit", "decision", "source"]],
+                 width="stretch")
+else:
+    st.write("Nothing to review 🎉")

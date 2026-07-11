@@ -6,6 +6,7 @@ env/
 # Python junk
 __pycache__/
 *.py[cod]
+*.log
 
 # Secrets (never push keys)
 .env

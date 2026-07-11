@@ -6,15 +6,13 @@ Level 2: EMBEDDINGS fallback              -> only when activity is unknown.
 
 import csv
 import numpy as np
-from pathlib import Path
 
 import ollama
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
+from paths import DATA_DIR
 
-BASE_DIR = Path(__file__).parent.parent
-DATA_DIR = BASE_DIR / "data"
 EMBED_MODEL = "nomic-embed-text"
 
 ACCEPT_SCORE   = 0.60
@@ -46,7 +44,7 @@ def factor_activity_type(row):
 
 def load_factors():
     factors = []
-    with open(BASE_DIR / "emission_factors.csv", newline="", encoding="utf-8") as f:
+    with open(DATA_DIR / "emission_factors.csv", newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             desc = f"{row['activity']} {row['unit_in']} {row['aliases'].replace('|', ' ')}"
             factors.append({

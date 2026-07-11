@@ -9,8 +9,7 @@ import pandas as pd          # library for reading tables (CSV/Excel)
 import pdfplumber            # library for reading PDFs
 from pathlib import Path     # small helper for working with file names/paths
 
-BASE_DIR = Path(__file__).parent.parent   # the ef-recon project root (one level up from src/)
-DATA_DIR = BASE_DIR / "data"              # the data folder at the project root
+from paths import DATA_DIR
 
 
 # ---------- 1. READ ONE CSV FILE ----------

@@ -7,15 +7,12 @@ emissions (kgCO2e) = quantity (base unit) × emission factor (per base unit)
 
 import csv
 from decimal import Decimal, ROUND_HALF_UP
-from pathlib import Path
 
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
 from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
-
-BASE_DIR = Path(__file__).parent.parent
-DATA_DIR = BASE_DIR / "data"
+from paths import DATA_DIR, OUTPUT_DIR
 
 
 def to_decimal(value):
@@ -105,7 +102,7 @@ def main():
     print(f"TOTAL emissions: {total} kgCO2e  =  {total_tonnes} tCO2e")
 
     # save the audit-ready results to a file
-    out = BASE_DIR / "computed_emissions.csv"
+    out = OUTPUT_DIR / "computed_emissions.csv"
     with open(out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(results[0].keys()))
         writer.writeheader()
