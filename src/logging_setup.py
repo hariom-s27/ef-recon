@@ -23,6 +23,10 @@ def setup_logging():
     file_handler.setFormatter(logging.Formatter(fmt, datefmt))
     root.addHandler(file_handler)
 
+    # quiet down chatty third-party libraries
+    for noisy in ("httpx", "httpcore", "urllib3"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
 def get_logger(name):
     """Every module calls this to get its own named logger."""
     return logging.getLogger(name)
