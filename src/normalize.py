@@ -30,30 +30,38 @@ class NormalizedLine(BaseModel):
 
 
 # ---------- 1) UNIT CONVERSION TABLE ----------
-# key = (unit as written, lowercased)  ->  (base unit, multiply by this)
+# key = unit as written (lowercased) -> (base unit, multiply factor)
 UNIT_CONVERSIONS = {
-    "kwh":   ("kWh", 1),        # already base
-    "mwh":   ("kWh", 1000),     # 1 MWh = 1000 kWh
-    "l":     ("litre", 1),      # already base
+    "kwh":   ("kWh", 1),
+    "mwh":   ("kWh", 1000),
+    "gj":    ("kWh", 277.778),     # 1 GJ = 277.778 kWh  (BRSR reports energy in GJ)
+    "l":     ("litre", 1),
     "litre": ("litre", 1),
     "litres":("litre", 1),
-    "kl":    ("litre", 1000),   # 1 kilolitre = 1000 litre
-    "m3":    ("m3", 1),         # already base
+    "kl":    ("litre", 1000),
+    "gallon":("litre", 3.785),     # US gallon -> litre
+    "gallons":("litre", 3.785),
+    "m3":    ("m3", 1),
     "m³":    ("m3", 1),
+    "sm3":   ("m3", 1),            # standard cubic metre (gas)
+    "kg":    ("kg", 1),            # kept as-is; whether it's usable is decided in match
+    "tonne": ("tonne", 1),
+    "mt":    ("tonne", 1),
+    "t":     ("tonne", 1),
+    "units": ("kWh", 1),      # "Units" on an Indian electricity bill = kWh
+    "unit":  ("kWh", 1),
 }
 
 def normalize_unit(quantity, unit):
     """Return (quantity_in_base_unit, base_unit, note)."""
     if quantity is None or unit is None:
         return quantity, unit, "missing quantity or unit"
-
-    key = str(unit).strip().lower()          # clean the unit text
+    key = str(unit).strip().lower()
     if key in UNIT_CONVERSIONS:
         base_unit, factor = UNIT_CONVERSIONS[key]
         return quantity * factor, base_unit, None
-    else:
-        # unknown unit -> don't guess; flag it for review
-        return quantity, unit, f"unknown unit '{unit}' - left as-is"
+    # truly unknown unit -> keep, flag for review (do NOT guess)
+    return quantity, unit, f"unknown unit '{unit}' - left as-is"
 
 
 def clean_text(value):
@@ -63,12 +71,43 @@ def clean_text(value):
     return str(value).strip().lower()
 
 
+# ---------- ACTIVITY ALIASES (deterministic — runs before trusting the LLM) ----------
+# maps messy activity/header text -> canonical activity. Sourced from your factor aliases.
+ACTIVITY_ALIASES = {
+    "electricity": ["electricity", "power", "grid", "units consumed", "units",
+                    "energy charges", "energy (units)", "energy", "consumption",
+                    "discom", "net units billed", "total units", "ht supply", "grid import"],
+    "diesel":      ["diesel", "hsd", "high speed diesel", "dg fuel", "genset fuel",
+                    "generator fuel", "dg set", "d.g. set"],
+    "petrol":      ["petrol", "gasoline", "motor spirit"],
+    "natural gas": ["natural gas", "png", "piped natural gas"],
+    "lpg":         ["lpg", "liquefied petroleum gas", "cooking gas", "propane"],
+    "cng":         ["cng", "compressed natural gas"],
+    "coal":        ["coal", "steam coal", "thermal coal"],
+}
+
+def canonical_activity(text):
+    """Map any activity/header text to a canonical activity, or None if no match."""
+    if not text:
+        return None
+    low = str(text).lower().strip()
+    # longest aliases first so 'natural gas' wins over 'gas'
+    for activity, aliases in ACTIVITY_ALIASES.items():
+        for alias in sorted(aliases, key=len, reverse=True):
+            if alias in low:
+                return activity
+    return None
+
+
 # ---------- 2) NORMALIZE ONE EXTRACTED LINE ----------
 def normalize_line(extracted: ExtractedLine) -> NormalizedLine:
     base_qty, base_unit, note = normalize_unit(extracted.quantity, extracted.unit)
 
+    # deterministic alias fix first; fall back to the LLM's guess only if no alias matches
+    fixed_activity = canonical_activity(extracted.activity) or clean_text(extracted.activity)
+
     return NormalizedLine(
-        activity=clean_text(extracted.activity),      # 'Electricity' -> 'electricity'
+        activity=fixed_activity,
         quantity=base_qty,
         unit=base_unit,
         period=extracted.period,

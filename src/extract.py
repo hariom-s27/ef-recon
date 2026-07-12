@@ -96,13 +96,31 @@ def extract_with_rules(record):
 
 
 # ================= METHOD B: LLM via Ollama =================
+ALLOWED_LLM_ACTIVITIES = {"electricity", "diesel", "petrol", "natural gas",
+                           "lpg", "cng", "coal", "unknown"}
+
 def extract_with_llm(text):
     from ollama import chat
     prompt = (
         "You are reading one energy or fuel bill line.\n"
-        "Extract: activity (electricity, diesel, petrol, natural gas, lpg, or unknown), "
-        "quantity (a number), unit, and period.\n"
+        "Extract:\n"
+        "- activity: MUST be exactly one of these literal values — "
+        "electricity, diesel, petrol, natural gas, lpg, cng, coal, unknown. "
+        "Never copy a column header or label from the text as the activity — infer the real "
+        "commodity instead. A unit like kWh/MWh means electricity even if the label says "
+        "'Units Consumed' or 'Energy (Units)'. A unit like litre/KL for a fuel bill usually "
+        "means diesel or petrol; look at the fuel name (HSD = diesel).\n"
+        "- quantity: a number\n"
+        "- unit: the unit as written (e.g. kWh, MWh, litre, KL, m3, kg)\n"
+        "- period: billing period or date, if present\n"
         "If a field is not present, use null. Return JSON only.\n\n"
+        "Examples:\n"
+        "TEXT: Torrent Power Units Consumed=7.905 MWh\n"
+        '-> {"activity": "electricity", "quantity": 7.905, "unit": "MWh", "period": null}\n'
+        "TEXT: BESCOM Energy (Units)=58.987 MWh\n"
+        '-> {"activity": "electricity", "quantity": 58.987, "unit": "MWh", "period": null}\n'
+        "TEXT: HSD 1.49 KL\n"
+        '-> {"activity": "diesel", "quantity": 1.49, "unit": "KL", "period": null}\n\n'
         f"TEXT:\n{text}"
     )
     try:
@@ -115,7 +133,11 @@ def extract_with_llm(text):
         # handle both new (.message.content) and old (["message"]["content"]) styles
         content = getattr(response, "message", None)
         content = content.content if content is not None else response["message"]["content"]
-        return ExtractedLine.model_validate_json(content)
+        line = ExtractedLine.model_validate_json(content)
+        # safety net: never trust an activity outside our known set (model can still hallucinate)
+        if line.activity.strip().lower() not in ALLOWED_LLM_ACTIVITIES:
+            line = line.model_copy(update={"activity": "unknown"})
+        return line
     except Exception as e:
         # never crash — return a safe "unknown" line and record why
         print(f"   [LLM fallback] could not extract: {e}")

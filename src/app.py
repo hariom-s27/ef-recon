@@ -126,9 +126,28 @@ n_dupes = int((df["decision"] == "duplicate").sum())
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Total emissions", f"{total:,.0f} kgCO₂e", f"{total/1000:,.2f} tCO₂e")
-c2.metric("Factor-match accuracy", "100%", "synthetic set (n=29) — see Real filing tab")
+
+# read the measured accuracy from the scorecard run
+import json
+sc_path = DATA_DIR.parent / "output" / "scorecard.json"
+if sc_path.exists():
+    sc = json.load(open(sc_path))
+    p = sc["precision_judge"] * 100
+    n = sc["n"]
+    esc_r, esc_t = sc["escalation"]
+    c2.metric("Factor-match accuracy (measured)", f"{p:.0f}%",
+              f"Precision@1 · judge · n={n}")
+else:
+    c2.metric("Factor-match accuracy", "run scorecard", "python src/run_scorecard.py")
+
 c3.metric("Duplicates caught", n_dupes, "removed from total")
 c4.metric("Needs review", n_review, "escalated / refused")
+
+if sc_path.exists():
+    st.caption(f"Measured on a hand-labeled adversarial set (n={sc['n']}): "
+               f"gold cross-check {sc['gold_correct']}/{sc['n']}, "
+               f"escalation {esc_r}/{esc_t} (correctly declines fuels with no factor). "
+               "Wide interval, small n — reported honestly.")
 
 st.divider()
 

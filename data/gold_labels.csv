@@ -31,3 +31,16 @@ ERP-0004,erp_spend_export.csv,Petrol reimbursement - sales cars,EF-PETROL-L,496,
 ERP-0005,erp_spend_export.csv,Printer cartridges & stationery,NO_FACTOR,,lot,,noise_non_energy|must_not_map
 ERP-0006,erp_spend_export.csv,Management consultancy fees,NO_FACTOR,,lot,,noise_non_energy|must_not_map
 ERP-0007,erp_spend_export.csv,Fuel expenses (mixed vehicles),ESCALATE,,litre,,ambiguous_fuel|should_escalate
+HARD-0001,hard_cases.csv,Furnace oil 4200 L for boiler,ESCALATE,,litre,,no_factor_in_library|should_escalate
+HARD-0002,hard_cases.csv,Pet coke 12 tonne kiln fuel,ESCALATE,,tonne,,no_factor_in_library|should_escalate
+HARD-0003,hard_cases.csv,Biomass briquettes 8.5 MT,ESCALATE,,tonne,,no_factor_in_library|should_escalate
+HARD-0004,hard_cases.csv,HFO heavy fuel oil 3100 litre,ESCALATE,,litre,,no_factor_in_library|should_escalate
+HARD-0005,hard_cases.csv,LPG 340 kg canteen,ESCALATE,,kg,,lpg_kg_not_litre|no_kg_factor
+HARD-0006,hard_cases.csv,CNG 620 m3 forklifts,ESCALATE,,m3,,cng_m3_not_kg|unit_mismatch
+HARD-0007,hard_cases.csv,Natural gas 45000 kWh boiler,EF-NATGAS-KWH,45000,kWh,8230.5,gas_energy_not_volume
+HARD-0008,hard_cases.csv,PNG 1850 m3 process heating,EF-NATGAS-M3,1850,m3,3774.0,gas_volume_unit_variation
+HARD-0009,hard_cases.csv,Power purchased from DISCOM 28500 units,EF-IN-ELEC-GRID,28500,kWh,20283.45,semantic_electricity
+HARD-0010,hard_cases.csv,HT supply grid import 61200 kWh,EF-IN-ELEC-GRID,61200,kWh,43556.04,semantic_electricity
+HARD-0011,hard_cases.csv,Rooftop solar generation 5400 kWh,EF-IN-ELEC-SOLAR,5400,kWh,0.0,renewable_zero_factor
+HARD-0012,hard_cases.csv,Grid electricity 33000 kWh Unit-2,EF-IN-ELEC-GRID,33000,kWh,23486.1,must_not_pick_combined_margin
+HARD-0013,hard_cases.csv,Diesel generator 900 gallons,ESCALATE,,gallon,,unit_gallons_not_litre|should_escalate

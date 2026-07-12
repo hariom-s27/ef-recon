@@ -37,7 +37,10 @@ Work through these THREE checks one by one, writing a short sentence for each, T
    (e.g. a diesel line needs a diesel factor; an electricity line needs an electricity factor.)
 
 2. unit_compatible: Can this factor's unit be applied to the line's quantity?
-   (kWh factor for a kWh/electricity line; litre factor for a litres-of-fuel line. MWh and kWh are compatible energy units; L and KL are compatible volume units.)
+   IMPORTANT: the line's unit is ALREADY NORMALIZED to the factor's base unit before you see it.
+   These are all COMPATIBLE and must pass: MWh/GJ/kWh -> kWh; KL/L/litre -> litre; m3/Sm3 -> m3.
+   So "line shows KL" with a "litre" factor is CORRECT (KL was converted to litre). Only fail this
+   check if the units are genuinely different physical types (e.g. a litre line vs a kWh factor).
 
 3. region_appropriate: Is this factor usable for the line's country (assume India unless stated)?
    IMPORTANT: a factor with region "Global" is ALWAYS region-appropriate — global fuel factors

@@ -1,13 +1,20 @@
 """
-match.py — SP-04 (fixed): match each clean line to the correct emission factor.
-Level 1: EXACT match on (activity, unit)  -> for clean lines. Precise, no guessing.
-Level 2: EMBEDDINGS fallback              -> only when activity is unknown.
+match.py — SP-04 (standardized): match each clean line to the correct emission factor.
+
+Decision policy (in order):
+  1. activity MUST match  (never cross activities: electricity !-> gas, diesel !-> petrol)
+  2. unit MUST match       among that activity's factors
+  3. tie-break: prefer region IN over GLOBAL; NEVER auto-pick a 'special use' factor (e.g. -CM)
+  4. activity matches but NO unit fits (LPG in kg, CNG in m3, diesel in gallons) -> ESCALATE
+  5. activity unknown -> semantic fallback (suggest only, gated by score thresholds)
 """
 
 import csv
+import pickle
+import os
 import numpy as np
-
 import ollama
+
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
@@ -23,9 +30,9 @@ def cosine(a, b):
 
 
 def factor_activity_type(row):
-    """Work out a clean category ('electricity','diesel',...) from the factor row."""
+    """Clean category ('electricity','diesel',...) from the factor row."""
     text = f"{row['activity']} {row['aliases']}".lower()
-    if "electricity" in text or "grid" in text:
+    if "electricity" in text or "grid" in text or "solar" in text:
         return "electricity"
     if "diesel" in text:
         return "diesel"
@@ -42,43 +49,118 @@ def factor_activity_type(row):
     return row["activity"].strip().lower()
 
 
+# factors that must NEVER be auto-selected (need a human / special context)
+SPECIAL_USE = {"EF-IN-ELEC-GRID-CM"}          # Combined Margin: CDM only, never corporate Scope 2
+
+# the ONLY activities our factor library actually covers
+KNOWN_ACTIVITIES = {"electricity", "diesel", "petrol", "natural gas",
+                    "lpg", "cng", "coal"}   # (solar handled as electricity)
+
+# activity -> the unit(s) we can actually price it in
+ALLOWED_UNITS = {
+    "electricity": {"kwh"},
+    "diesel":      {"litre"},
+    "petrol":      {"litre"},
+    "natural gas": {"m3", "kwh"},
+    "lpg":         {"litre"},     # kg has NO factor -> must escalate
+    "cng":         {"kg"},        # m3 has NO factor -> must escalate
+    "coal":        {"tonne"},
+}
+
+
 def load_factors():
+    cache = DATA_DIR.parent / "output" / "factors_cache.pkl"
+    csv_path = DATA_DIR / "emission_factors.csv"
+    # reuse cache if it's newer than the CSV
+    if cache.exists() and os.path.getmtime(cache) > os.path.getmtime(csv_path):
+        return pickle.load(open(cache, "rb"))
+
     factors = []
-    with open(DATA_DIR / "emission_factors.csv", newline="", encoding="utf-8") as f:
+    with open(csv_path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             desc = f"{row['activity']} {row['unit_in']} {row['aliases'].replace('|', ' ')}"
             factors.append({
                 "factor_id":     row["factor_id"],
-                "activity_type": factor_activity_type(row),      # <-- clean category key
+                "activity_type": factor_activity_type(row),
                 "unit_in":       row["unit_in"].strip().lower(),
+                "region":        row.get("region", "GLOBAL").strip().upper(),
+                "special":       row["factor_id"] in SPECIAL_USE,
                 "value":         float(row["factor_kgco2e_per_unit"]),
+                "source":        row.get("source", ""),
+                "source_year":   row.get("source_year", ""),
                 "desc":          desc,
                 "vector":        embed(desc),
             })
+    cache.parent.mkdir(exist_ok=True)
+    pickle.dump(factors, open(cache, "wb"))
     return factors
 
 
-# ---------- LEVEL 1: exact match on (activity, unit) ----------
+# ---------- LEVEL 1: standardized exact match ----------
 def exact_match(norm, factors):
-    """Return the factor whose activity AND unit both match. Precise, no AI."""
+    """Activity-first, unit-second, with tie-breaks. Returns a factor or None."""
     line_activity = (norm.activity or "").strip().lower()
     line_unit     = (norm.unit or "").strip().lower()
-    for fac in factors:
-        if fac["activity_type"] == line_activity and fac["unit_in"] == line_unit:
-            return fac
-    return None
+
+    # candidates: same activity, same unit, not special-use
+    candidates = [f for f in factors
+                  if f["activity_type"] == line_activity
+                  and f["unit_in"] == line_unit
+                  and not f["special"]]
+    if not candidates:
+        return None
+
+    # tie-break: prefer India-specific factor over global
+    candidates.sort(key=lambda f: 0 if f["region"] == "IN" else 1)
+    return candidates[0]
 
 
-# ---------- LEVEL 2: embeddings fallback (only for unknown) ----------
+def activity_known(norm, factors):
+    """Does the line's activity exist in our library at all?"""
+    line_activity = (norm.activity or "").strip().lower()
+    return any(f["activity_type"] == line_activity for f in factors)
+
+
+# ---------- LEVEL 2: semantic fallback (only when activity is unknown) ----------
 def semantic_match(norm, factors):
     line_text = f"{norm.activity} {norm.unit}"
     line_vec = embed(line_text)
     best, best_score = None, -1.0
     for fac in factors:
+        if fac["special"]:
+            continue
         score = cosine(line_vec, fac["vector"])
         if score > best_score:
             best, best_score = fac, score
     return best, best_score
+
+
+# ---------- the single decision function (use this everywhere) ----------
+def match_line(norm, factors):
+    """Return (decision, factor_or_None). One policy, honest escalation."""
+    activity = (norm.activity or "").strip().lower()
+    unit     = (norm.unit or "").strip().lower()
+
+    # 1. no activity or no unit -> caller decides escalate vs refuse
+    if activity == "unknown" or norm.unit is None:
+        return "escalate_or_refuse", None
+
+    # 2. activity NOT in our library -> escalate, NEVER semantic-guess
+    #    (furnace oil, pet coke, HFO, biomass all land here)
+    if activity not in KNOWN_ACTIVITIES:
+        return "escalate", None
+
+    # 3. activity known but unit not one we can price (LPG kg, CNG m3, diesel gallons-if-unconverted)
+    if unit not in ALLOWED_UNITS.get(activity, set()):
+        return "escalate", None
+
+    # 4. activity + unit both valid -> standardized exact match
+    fac = exact_match(norm, factors)
+    if fac:
+        return "accept", fac
+
+    # 5. safety net: known activity but no exact factor row -> escalate, don't force
+    return "escalate", None
 
 
 def main():
@@ -102,24 +184,11 @@ def main():
             line_id = f"PDF-p{r['source_page']}"
         norm = normalize_line(extracted)
 
-        # noise -> refuse immediately
-        if norm.activity == "unknown" or norm.unit is None:
-            print(f"{line_id:12} {norm.activity:12} {str(norm.unit):6} -> ❌ REFUSE (no clear activity/unit)")
-            continue
-
-        # LEVEL 1: try exact match first
-        fac = exact_match(norm, factors)
-        if fac:
-            print(f"{line_id:12} {norm.activity:12} {str(norm.unit):6} -> "
-                  f"{fac['factor_id']:18} (exact) ✅ accept")
-            continue
-
-        # LEVEL 2: fall back to embeddings
-        best, score = semantic_match(norm, factors)
-        decision = "accept" if score >= ACCEPT_SCORE else ("escalate" if score >= ESCALATE_SCORE else "refuse")
-        tag = {"accept": "✅", "escalate": "⚠️", "refuse": "❌"}[decision]
-        print(f"{line_id:12} {norm.activity:12} {str(norm.unit):6} -> "
-              f"{best['factor_id']:18} score={score:.2f} {tag} {decision} (semantic)")
+        decision, fac = match_line(norm, factors)
+        fid = fac["factor_id"] if fac else "-"
+        tag = {"accept": "✅", "escalate": "⚠️", "refuse": "❌",
+               "escalate_or_refuse": "⚠️"}[decision]
+        print(f"{line_id:12} {norm.activity:12} {str(norm.unit):6} -> {fid:18} {tag} {decision}")
 
 
 if __name__ == "__main__":
