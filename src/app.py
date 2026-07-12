@@ -138,15 +138,10 @@ c3.metric("Duplicates caught", n_dupes, "removed from total")
 c4.metric("Needs review", n_review, "escalated / refused")
 
 if sc_path.exists():
-    from statsmodels.stats.proportion import proportion_confint
-    lo, hi = proportion_confint(round(sc["precision_judge"] * n), n, alpha=0.05, method="wilson")
-    gold_pct = sc["gold_correct"] / n * 100
-    st.caption(f"Measured on a hand-labeled adversarial set (n={n}): "
-               f"judge {p:.0f}% (CI {lo*100:.1f}–{hi*100:.1f}%), "
-               f"gold cross-check {gold_pct:.0f}% ({sc['gold_correct']}/{n}, remaining gaps are "
-               f"factor ambiguities, not errors), "
-               f"escalation {esc_r}/{esc_t}, refusal {ref_r}/{ref_t}. "
-               "Two independent accuracy signals agree — the judge is validated.")
+    st.caption(f"Measured on a hand-labeled adversarial set (n={sc['n']}): "
+               f"judge Precision@1 {sc['precision_judge']*100:.0f}%, gold cross-check "
+               f"{sc['gold_correct']}/{sc['n']} ({sc['gold_correct']/sc['n']*100:.0f}%), "
+               f"escalation {esc_r}/{esc_t}. Small n → wide interval, reported honestly.")
 
 st.divider()
 
