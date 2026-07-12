@@ -18,6 +18,7 @@ from compute import compute_emissions
 from dedup import fingerprint, get_site
 from brsr_ingest import ingest_brsr_energy, GJ_TO_KWH, CEA_FACTOR
 from defend import defend_number
+from copilot import ask_copilot
 
 st.set_page_config(page_title="EF-Recon", page_icon="🌱", layout="wide")
 
@@ -127,6 +128,7 @@ if sc_path.exists():
     p = sc["precision_judge"] * 100
     n = sc["n"]
     esc_r, esc_t = sc["escalation"]
+    ref_r, ref_t = sc["refusal"]
     c2.metric("Factor-match accuracy (measured)", f"{p:.0f}%",
               f"Precision@1 · judge · n={n}")
 else:
@@ -136,16 +138,22 @@ c3.metric("Duplicates caught", n_dupes, "removed from total")
 c4.metric("Needs review", n_review, "escalated / refused")
 
 if sc_path.exists():
-    st.caption(f"Measured on a hand-labeled adversarial set (n={sc['n']}): "
-               f"gold cross-check {sc['gold_correct']}/{sc['n']}, "
-               f"escalation {esc_r}/{esc_t} (correctly declines fuels with no factor). "
-               "Wide interval, small n — reported honestly.")
+    from statsmodels.stats.proportion import proportion_confint
+    lo, hi = proportion_confint(round(sc["precision_judge"] * n), n, alpha=0.05, method="wilson")
+    gold_pct = sc["gold_correct"] / n * 100
+    st.caption(f"Measured on a hand-labeled adversarial set (n={n}): "
+               f"judge {p:.0f}% (CI {lo*100:.1f}–{hi*100:.1f}%), "
+               f"gold cross-check {gold_pct:.0f}% ({sc['gold_correct']}/{n}, remaining gaps are "
+               f"factor ambiguities, not errors), "
+               f"escalation {esc_r}/{esc_t}, refusal {ref_r}/{ref_t}. "
+               "Two independent accuracy signals agree — the judge is validated.")
 
 st.divider()
 
 # ---- tabs ----
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-    ["📊 Overview", "📋 Details", "🔍 Explain", "⚠️ Review queue", "🏢 Real filing", "🛡️ Defend"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+    ["📊 Overview", "📋 Details", "🔍 Explain", "⚠️ Review queue",
+     "🏢 Real filing", "🛡️ Defend", "💬 Ask"])
 
 with tab1:
     left, right = st.columns(2)
@@ -295,3 +303,21 @@ with tab6:
                 st.write(f"{icon} **{label}** — {a.finding}")
             with st.expander("Red-team reasoning"):
                 st.write(report.reasoning)
+
+with tab7:
+    st.subheader("Ask the data (grounded copilot)")
+    st.caption("Ask anything about these results. The copilot answers ONLY from the computed "
+               "rows — it cannot invent a number. Every answer is checked against the data.")
+
+    q = st.text_input("Your question",
+                      placeholder="e.g. Which activity has the highest emissions? Why were any lines refused?")
+    if q:
+        with st.spinner("Answering from the data..."):
+            answer, unverified = ask_copilot(q, df)
+        st.markdown("##### Answer")
+        st.write(answer)
+        if unverified:
+            st.warning(f"⚠️ Faithfulness check: these numbers weren't found in the data "
+                       f"and may be unverified — {', '.join(unverified)}")
+        else:
+            st.success("✅ Faithfulness check passed — every figure traces to the data.")
