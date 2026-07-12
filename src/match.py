@@ -136,10 +136,15 @@ def semantic_match(norm, factors):
 
 
 # ---------- the single decision function (use this everywhere) ----------
-def match_line(norm, factors):
+def match_line(norm, factors, raw_text=""):
     """Return (decision, factor_or_None). One policy, honest escalation."""
     activity = (norm.activity or "").strip().lower()
     unit     = (norm.unit or "").strip().lower()
+
+    # named unsupported fuel in the raw text -> escalate before matching
+    from normalize import has_unsupported_fuel
+    if has_unsupported_fuel(raw_text) or has_unsupported_fuel(activity):
+        return "escalate", None
 
     # 1. no activity or no unit -> caller decides escalate vs refuse
     if activity == "unknown" or norm.unit is None:

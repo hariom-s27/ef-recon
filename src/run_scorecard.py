@@ -50,6 +50,10 @@ def to_judge_factor(fac):
 
 def run_engine(description, factors, fb_qty=None, fb_unit=None):
     """extract -> normalize -> match via the ONE policy. Returns (decision, factor_or_None)."""
+    from normalize import has_unsupported_fuel
+    if has_unsupported_fuel(description):
+        return "escalate", None          # named fuel we don't cover -> honest escalation
+
     # fast path: if the gold row already gives us activity via canonical alias, skip the LLM
     from normalize import canonical_activity
     guess = canonical_activity(description)
@@ -68,7 +72,7 @@ def run_engine(description, factors, fb_qty=None, fb_unit=None):
     norm = normalize_line(ex)
 
     from match import match_line
-    decision, fac = match_line(norm, factors)
+    decision, fac = match_line(norm, factors, raw_text=description)
     if decision == "escalate_or_refuse":
         low = description.lower()
         decision = "escalate" if any(h in low for h in AMBIGUOUS_HINTS) else "refuse"

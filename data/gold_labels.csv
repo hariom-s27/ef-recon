@@ -25,7 +25,7 @@ DSL-0008,diesel_invoices.csv,DG Set Diesel 2.182 KL,EF-DIESEL-L,2182,litre,5476.
 DSL-0009,diesel_invoices.csv,HSD 0.317 KL,EF-DIESEL-L,317,litre,795.67,fuel_name_variation|unit_kilolitre
 DSL-0010,diesel_invoices.csv,Diesel 8.623 KL,EF-DIESEL-L,8623,litre,21643.73,fuel_name_variation|unit_kilolitre
 ERP-0001,erp_spend_export.csv,Electricity charges - Unit 1,EF-IN-ELEC-GRID,35976,kWh,25604.119,clean
-ERP-0002,erp_spend_export.csv,PNG (piped natural gas) consumption,EF-NATGAS-M3,1295,m3,2641.8,clean
+ERP-0002,erp_spend_export.csv,PNG (piped natural gas) consumption,ESCALATE,,,,ambiguous_gas_unit|no_unit_given
 ERP-0003,erp_spend_export.csv,LPG cylinders - canteen,EF-LPG-L,534,litre,831.438,confirm_litre_vs_kg
 ERP-0004,erp_spend_export.csv,Petrol reimbursement - sales cars,EF-PETROL-L,496,litre,1036.64,clean
 ERP-0005,erp_spend_export.csv,Printer cartridges & stationery,NO_FACTOR,,lot,,noise_non_energy|must_not_map

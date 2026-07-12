@@ -99,6 +99,16 @@ def canonical_activity(text):
     return None
 
 
+# fuels/materials NOT in our factor library -> must escalate, never match
+UNSUPPORTED_FUELS = ["furnace oil", "pet coke", "petcoke", "hfo", "heavy fuel oil",
+                     "biomass", "briquette", "briquettes", "lignite", "naphtha", "bagasse"]
+
+def has_unsupported_fuel(text):
+    """True if the text names a fuel we have no factor for -> honest escalation."""
+    low = str(text or "").lower()
+    return any(f in low for f in UNSUPPORTED_FUELS)
+
+
 # ---------- 2) NORMALIZE ONE EXTRACTED LINE ----------
 def normalize_line(extracted: ExtractedLine) -> NormalizedLine:
     base_qty, base_unit, note = normalize_unit(extracted.quantity, extracted.unit)

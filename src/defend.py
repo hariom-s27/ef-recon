@@ -26,7 +26,7 @@ JUDGE_MODEL = "llama3.1:8b"     # different family from extractor — same as yo
 # ---------- 1. the red-team output shape ----------
 class Attack(BaseModel):
     check: str = Field(description="the risk being tested")
-    passed: bool = Field(description="true = number survives this attack, false = weakness found")
+    weakness_found: bool = Field(description="true = a real problem exists, false = the number is fine on this check")
     finding: str = Field(description="one-sentence explanation grounded in the factor's real fields")
 
 class RedTeamReport(BaseModel):
@@ -90,7 +90,10 @@ def red_team(defense, chosen, norm, reporting_year="FY2024-25"):
     looks_like_aggregate = any(h in source_text.lower() for h in AGGREGATE_HINTS)
 
     prompt = f"""You are a Big-4 carbon auditor trying to REJECT this emission number.
-Attack it on each checklist item. A check 'passed' = the number survives that attack.
+Attack it on each checklist item.
+For each check set weakness_found = true ONLY if a real problem exists; set it false if the number is fine.
+Be strict but fair: do NOT flag a weakness when your own explanation says the number is correct.
+overall_risk = "high" only if a serious weakness_found is true; "low" if all checks are fine.
 Ground every finding in the real facts given below — do NOT invent problems, and do NOT
 mark a check as a weakness just because a fact wasn't explicitly re-stated if it is
 already given here.
@@ -104,9 +107,9 @@ LINE UNIT (already normalized): {line_unit}   FACTOR UNIT: {chosen['unit_in']}
 IS THIS A SPECIAL-USE FACTOR (e.g. Combined Margin, CDM-only)? {"YES" if is_special else "NO — this is a standard factor, valid for corporate Scope 2"}
 SOURCE DOC: {defense['source']}
 
-Checklist. IMPORTANT: "passed": true is the DEFAULT and CORRECT answer for every check below
-unless the specific fail condition is clearly met. Do not set "passed": false out of general
-caution — only when the stated fail condition is true.
+Checklist. IMPORTANT: "weakness_found": false is the DEFAULT and CORRECT answer for every check
+below unless the specific fail condition is clearly met. Do not set "weakness_found": true out of
+general caution — only when the stated fail condition is true.
 
 - outdated_factor:
     FAIL condition: FACTOR VINTAGE is chronologically EARLIER than REPORTING PERIOD.
@@ -168,5 +171,5 @@ if __name__ == "__main__":
     print("reasoning:", report.reasoning[:200])
     for name in ["outdated_factor", "wrong_region", "unit_mismatch", "double_count", "special_use_misuse"]:
         a = getattr(report, name)
-        print(f"  {name:20} {'PASS' if a.passed else 'WEAKNESS'} — {a.finding[:90]}")
+        print(f"  {name:20} {'WEAKNESS' if a.weakness_found else 'PASS'} — {a.finding[:90]}")
     print(f"  OVERALL RISK: {report.overall_risk.upper()}")

@@ -10,14 +10,14 @@ import plotly.express as px
 import streamlit as st
 
 from paths import DATA_DIR
-from config import ACCEPT_SCORE, ESCALATE_SCORE
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
-from match import load_factors, exact_match, semantic_match
+from match import load_factors, match_line
 from compute import compute_emissions
 from dedup import fingerprint, get_site
 from brsr_ingest import ingest_brsr_energy, GJ_TO_KWH, CEA_FACTOR
+from defend import defend_number
 
 st.set_page_config(page_title="EF-Recon", page_icon="🌱", layout="wide")
 
@@ -61,17 +61,11 @@ def process(records, factors):
                "unit": norm.unit, "factor_id": "", "factor_value": None,
                "emissions_kgco2e": None, "decision": "", "source": source, "duplicate": False}
 
-        if norm.activity == "unknown" or norm.unit is None:
-            row["decision"] = "escalate" if looks_ambiguous(r) else "refuse"
-            rows.append(row); continue
-
-        fac = exact_match(norm, factors)
-        if fac:
-            score, decision = 1.0, "accept"
-        else:
-            fac, score = semantic_match(norm, factors)
-            decision = ("accept" if score >= ACCEPT_SCORE else
-                        "escalate" if score >= ESCALATE_SCORE else "refuse")
+        raw_text = " ".join(str(v) for v in r.get("raw", {}).values()) if r["source_type"] == "csv" \
+            else r.get("raw_text", "")
+        decision, fac = match_line(norm, factors, raw_text=raw_text)
+        if decision == "escalate_or_refuse":
+            decision = "escalate" if looks_ambiguous(r) else "refuse"
 
         if decision == "accept":
             # dedup check
@@ -85,8 +79,6 @@ def process(records, factors):
             emissions = float(compute_emissions(norm.quantity, fac["value"]))
             row.update(factor_id=fac["factor_id"], factor_value=fac["value"],
                        emissions_kgco2e=emissions)
-        else:
-            row["factor_id"] = fac["factor_id"] if fac else ""
         row["decision"] = decision if not row["duplicate"] else "duplicate"
         rows.append(row)
     return rows
@@ -152,8 +144,8 @@ if sc_path.exists():
 st.divider()
 
 # ---- tabs ----
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["📊 Overview", "📋 Details", "🔍 Explain", "⚠️ Review queue", "🏢 Real filing"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    ["📊 Overview", "📋 Details", "🔍 Explain", "⚠️ Review queue", "🏢 Real filing", "🛡️ Defend"])
 
 with tab1:
     left, right = st.columns(2)
@@ -255,3 +247,51 @@ with tab5:
         st.caption(f"Location-based Scope 2 using CEA v21 grid factor ({CEA_FACTOR} tCO₂/MWh), "
                    "traced to the exact source page. Note: the company's *market-based* figure is "
                    "lower — ~46% of their electricity is renewable (two valid GHG Protocol methods).")
+
+with tab6:
+    st.subheader("Defend & red-team any number")
+    st.caption("Pick an accepted number → the engine writes its defense (factor, why, source, "
+               "rejected alternatives), then a red-team agent attacks it on 5 audit angles.")
+
+    accepted = df[df["decision"] == "accept"]
+    if accepted.empty:
+        st.write("No accepted numbers to defend.")
+    else:
+        pick = st.selectbox("Pick a number to defend", accepted["line_id"], key="defend_pick")
+        row = accepted[accepted["line_id"] == pick].iloc[0]
+
+        # rebuild the normalized line + chosen factor for this row
+        from types import SimpleNamespace
+        norm = SimpleNamespace(activity=row["activity"], quantity=row["quantity"], unit=row["unit"])
+        chosen = next((f for f in factors if f["factor_id"] == row["factor_id"]), None)
+
+        if chosen is None:
+            st.warning("Factor not found for this line.")
+        elif st.button("🛡️ Defend this number", key="defend_btn"):
+            with st.spinner("Building defense + running red-team (a few seconds)..."):
+                defense, report = defend_number(
+                    norm, chosen, row["source"], row["emissions_kgco2e"], factors)
+
+            # ---- defense file ----
+            st.markdown("##### Defense file")
+            st.success(f"**{defense['number']}**  —  {defense['formula']}")
+            st.write(f"**Why this factor:** {defense['why_chosen']}")
+            st.write(f"**Source:** {defense['source']}")
+            if defense["rejected_alternatives"]:
+                st.markdown("**Rejected alternatives:**")
+                for alt in defense["rejected_alternatives"]:
+                    st.write(f"- `{alt['factor_id']}` (score {alt['score']}) — {alt['why_not']}")
+
+            # ---- red-team ----
+            st.markdown("##### Red-team attack")
+            risk = report.overall_risk
+            badge = {"low": "🟢 LOW", "medium": "🟠 MEDIUM", "high": "🔴 HIGH"}[risk]
+            st.markdown(f"**Overall risk: {badge}**")
+            for name in ["outdated_factor", "wrong_region", "unit_mismatch",
+                         "double_count", "special_use_misuse"]:
+                a = getattr(report, name)
+                icon = "⚠️" if a.weakness_found else "✅"
+                label = name.replace("_", " ")
+                st.write(f"{icon} **{label}** — {a.finding}")
+            with st.expander("Red-team reasoning"):
+                st.write(report.reasoning)
