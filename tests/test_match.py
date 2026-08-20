@@ -1,6 +1,7 @@
 """Tests for SP-04/09 matching: correct factor, and the bugs we fixed must NEVER return."""
 from match import load_factors, exact_match
 from normalize import NormalizedLine
+import match
 
 FACTORS = load_factors()
 
@@ -26,3 +27,10 @@ def test_electricity_does_NOT_match_gas():
     """Regression guard for the electricity->natural gas bug."""
     fac = exact_match(_line("electricity", "kwh"), FACTORS)
     assert "NATGAS" not in fac["factor_id"]       # must never be gas
+
+def test_embed_returns_none_when_ollama_is_unavailable(monkeypatch):
+    def _fail(**kwargs):
+        raise ConnectionError("offline")
+
+    monkeypatch.setattr(match.ollama, "embeddings", _fail)
+    assert match.embed("electricity kwh") is None
