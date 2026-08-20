@@ -23,7 +23,10 @@ from config import ACCEPT_SCORE, ESCALATE_SCORE, EMBED_MODEL
 
 
 def embed(text):
-    return np.array(ollama.embeddings(model=EMBED_MODEL, prompt=text)["embedding"])
+    try:
+        return np.array(ollama.embeddings(model=EMBED_MODEL, prompt=text)["embedding"])
+    except Exception:
+        return None
 
 def cosine(a, b):
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
@@ -125,9 +128,11 @@ def activity_known(norm, factors):
 def semantic_match(norm, factors):
     line_text = f"{norm.activity} {norm.unit}"
     line_vec = embed(line_text)
+    if line_vec is None:
+        return None, -1.0
     best, best_score = None, -1.0
     for fac in factors:
-        if fac["special"]:
+        if fac["special"] or fac["vector"] is None:
             continue
         score = cosine(line_vec, fac["vector"])
         if score > best_score:
