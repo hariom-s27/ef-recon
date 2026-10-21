@@ -116,6 +116,11 @@ def normalize_line(extracted: ExtractedLine) -> NormalizedLine:
     # deterministic alias fix first; fall back to the LLM's guess only if no alias matches
     fixed_activity = canonical_activity(extracted.activity) or clean_text(extracted.activity)
 
+    # "Units" = kWh only on an electricity bill; anywhere else it's a count, not energy
+    if str(extracted.unit or "").strip().lower() in ("unit", "units") and fixed_activity != "electricity":
+        base_qty, base_unit = extracted.quantity, None
+        note = "'unit(s)' means kWh only on electricity bills"
+
     return NormalizedLine(
         activity=fixed_activity,
         quantity=base_qty,

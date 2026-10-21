@@ -18,8 +18,6 @@ from normalize import normalize_line
 from match import load_factors
 from judge import judge_one
 
-AMBIGUOUS_HINTS = ["fuel", "energy", "consumption", "utility"]
-
 # ---------- judge cache (judge is deterministic at temp=0, so cache by (line, factor)) ----------
 (DATA_DIR.parent / "output").mkdir(exist_ok=True)
 _JUDGE_CACHE = DATA_DIR.parent / "output" / "judge_cache.json"
@@ -71,11 +69,9 @@ def run_engine(description, factors, fb_qty=None, fb_unit=None):
         )
     norm = normalize_line(ex)
 
-    from match import match_line
+    from match import match_line, resolve_decision
     decision, fac = match_line(norm, factors, raw_text=description)
-    if decision == "escalate_or_refuse":
-        low = description.lower()
-        decision = "escalate" if any(h in low for h in AMBIGUOUS_HINTS) else "refuse"
+    decision = resolve_decision(decision, {"raw": {"description": description}})
     return decision, fac
 
 

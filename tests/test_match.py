@@ -1,9 +1,9 @@
 """Tests for SP-04/09 matching: correct factor, and the bugs we fixed must NEVER return."""
-from match import load_factors, exact_match
+from match import read_factor_rows, exact_match
 from normalize import NormalizedLine
 import match
 
-FACTORS = load_factors()
+FACTORS = read_factor_rows()
 
 def _line(activity, unit):
     return NormalizedLine(activity=activity, unit=unit, quantity=1)

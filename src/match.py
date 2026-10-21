@@ -71,13 +71,10 @@ ALLOWED_UNITS = {
 }
 
 
-def load_factors():
-    cache = DATA_DIR.parent / "output" / "factors_cache.pkl"
-    csv_path = DATA_DIR / "emission_factors.csv"
-    # reuse cache if it's newer than the CSV
-    if cache.exists() and os.path.getmtime(cache) > os.path.getmtime(csv_path):
-        return pickle.load(open(cache, "rb"))
-
+def read_factor_rows(csv_path=None):
+    """Factor rows straight from the CSV, vector=None. Pure: no cache, no pickle, no Ollama."""
+    if csv_path is None:
+        csv_path = DATA_DIR / "emission_factors.csv"
     factors = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -92,8 +89,21 @@ def load_factors():
                 "source":        row.get("source", ""),
                 "source_year":   row.get("source_year", ""),
                 "desc":          desc,
-                "vector":        embed(desc),
+                "vector":        None,
             })
+    return factors
+
+
+def load_factors():
+    cache = DATA_DIR.parent / "output" / "factors_cache.pkl"
+    csv_path = DATA_DIR / "emission_factors.csv"
+    # reuse cache if it's newer than the CSV
+    if cache.exists() and os.path.getmtime(cache) > os.path.getmtime(csv_path):
+        return pickle.load(open(cache, "rb"))
+
+    factors = read_factor_rows(csv_path)
+    for fac in factors:
+        fac["vector"] = embed(fac["desc"])
     cache.parent.mkdir(exist_ok=True)
     pickle.dump(factors, open(cache, "wb"))
     return factors
@@ -126,6 +136,7 @@ def activity_known(norm, factors):
 
 # ---------- LEVEL 2: semantic fallback (only when activity is unknown) ----------
 def semantic_match(norm, factors):
+    """Suggestion-only: never used for an accept/escalate/refuse decision (enforced by tests/test_single_path.py::T4)."""
     line_text = f"{norm.activity} {norm.unit}"
     line_vec = embed(line_text)
     if line_vec is None:
@@ -171,6 +182,16 @@ def match_line(norm, factors, raw_text=""):
 
     # 5. safety net: known activity but no exact factor row -> escalate, don't force
     return "escalate", None
+
+
+def resolve_decision(decision, record):
+    """Map match_line's 'escalate_or_refuse' to a final decision (the ONE place this happens).
+    record needs a 'raw' dict (ingest record, or {"raw": {...}}): escalate if it still
+    smells like energy/fuel, else refuse. Every other decision passes through unchanged."""
+    if decision != "escalate_or_refuse":
+        return decision
+    from extract import looks_ambiguous
+    return "escalate" if looks_ambiguous(record) else "refuse"
 
 
 def main():

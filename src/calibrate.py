@@ -10,7 +10,7 @@ from paths import DATA_DIR, OUTPUT_DIR
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
-from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
+from match import load_factors, match_line, resolve_decision
 import csv
 
 BASELINE_FILE = OUTPUT_DIR / "baseline.json"
@@ -49,15 +49,13 @@ def collect_predictions(factors, gold):
         # only score real mappable lines (skip noise/ambiguous)
         if truth is None or truth in ("NO_FACTOR", "ESCALATE"):
             continue
-        if norm.activity == "unknown" or norm.unit is None:
-            continue
+        raw_text = " ".join(str(v) for v in r.get("raw", {}).values()) if r["source_type"] == "csv" \
+            else r.get("raw_text", "")
+        decision, fac = match_line(norm, factors, raw_text=raw_text)
+        if resolve_decision(decision, r) != "accept":
+            continue     # escalated/refused lines are not predictions
 
-        fac = exact_match(norm, factors)
-        if fac:
-            confidence, predicted = 1.0, fac["factor_id"]      # exact = fully confident
-        else:
-            fac, score = semantic_match(norm, factors)
-            confidence, predicted = score, fac["factor_id"]
+        confidence, predicted = 1.0, fac["factor_id"]      # accept = exact match = fully confident
 
         is_correct = (predicted == truth)
         data.append((confidence, is_correct))
