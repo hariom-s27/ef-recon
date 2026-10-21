@@ -11,9 +11,9 @@ import streamlit as st
 
 from paths import DATA_DIR
 from ingest import ingest_csv, ingest_pdf
-from extract import extract_with_rules, extract_with_llm, looks_ambiguous
+from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
-from match import load_factors, match_line
+from match import load_factors, match_line, resolve_decision
 from compute import compute_emissions
 from dedup import fingerprint, get_site
 from brsr_ingest import ingest_brsr_energy, GJ_TO_KWH, CEA_FACTOR
@@ -65,8 +65,7 @@ def process(records, factors):
         raw_text = " ".join(str(v) for v in r.get("raw", {}).values()) if r["source_type"] == "csv" \
             else r.get("raw_text", "")
         decision, fac = match_line(norm, factors, raw_text=raw_text)
-        if decision == "escalate_or_refuse":
-            decision = "escalate" if looks_ambiguous(r) else "refuse"
+        decision = resolve_decision(decision, r)
 
         if decision == "accept":
             # dedup check

@@ -11,7 +11,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
-from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
+from match import load_factors, match_line, resolve_decision
 from paths import DATA_DIR, OUTPUT_DIR
 
 
@@ -60,21 +60,16 @@ def main():
             source_ref = f"{r['source_file']} page {r['source_page']}"
         norm = normalize_line(extracted)
 
-        # skip noise
-        if norm.activity == "unknown" or norm.unit is None:
+        # match + decide via the ONE policy
+        raw_text = " ".join(str(v) for v in r.get("raw", {}).values()) if r["source_type"] == "csv" \
+            else r.get("raw_text", "")
+        decision, fac = match_line(norm, factors, raw_text=raw_text)
+        decision = resolve_decision(decision, r)
+        how = "exact"
+
+        if decision == "refuse":
             print(f"{line_id:12} REFUSE (no clear activity/unit)")
-            continue
-
-        # match (exact first, else semantic)
-        fac = exact_match(norm, factors)
-        if fac:
-            score, how = 1.0, "exact"
-        else:
-            fac, score = semantic_match(norm, factors)
-            how = "semantic"
-
-        # decide
-        if how == "exact" or score >= ACCEPT_SCORE:
+        elif decision == "accept":
             emissions = compute_emissions(norm.quantity, fac["value"])
             total += emissions
             # build the FULL audit-ready record
@@ -93,7 +88,7 @@ def main():
             print(f"{line_id:12} {norm.activity:12} {str(norm.quantity):>10} {norm.unit:5} "
                   f"× {fac['value']:<7} = {str(emissions):>12} kgCO2e   [{fac['factor_id']}, {how}]")
         else:
-            print(f"{line_id:12} {norm.activity:12} -> ⚠️ ESCALATE (score {score:.2f}) - not counted")
+            print(f"{line_id:12} {norm.activity:12} -> ⚠️ ESCALATE - not counted")
 
     # ----- summary -----
     total_tonnes = (total / Decimal("1000")).quantize(Decimal("0.001"))

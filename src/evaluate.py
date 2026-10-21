@@ -8,9 +8,9 @@ import csv
 from statsmodels.stats.proportion import proportion_confint
 
 from ingest import ingest_csv, ingest_pdf
-from extract import extract_with_rules, extract_with_llm, looks_ambiguous
+from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
-from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
+from match import load_factors, match_line, resolve_decision
 from paths import DATA_DIR
 from logging_setup import setup_logging
 
@@ -35,23 +35,18 @@ def predict(record, factors):
         line_id = "PDF-0001"     # our gold key names the PDF line PDF-0001
     norm = normalize_line(extracted)
 
-    # noise -> engine refuses, unless it still smells like fuel/energy -> escalate
-    if norm.activity == "unknown" or norm.unit is None:
-        if looks_ambiguous(record):
-            return line_id, "ESCALATE", "escalate"     # unclear fuel -> human
-        return line_id, "NO_FACTOR", "refuse"           # true noise -> refuse
+    # the ONE policy; noise -> refuse unless it still smells like fuel/energy -> escalate
+    raw_text = " ".join(str(v) for v in record.get("raw", {}).values()) \
+        if record["source_type"] == "csv" else record.get("raw_text", "")
+    decision, fac = match_line(norm, factors, raw_text=raw_text)
+    decision = resolve_decision(decision, record)
 
-    fac = exact_match(norm, factors)
-    if fac:
+    if decision == "accept":
         return line_id, fac["factor_id"], "accept"
-
-    best, score = semantic_match(norm, factors)
-    if score >= ACCEPT_SCORE:
-        return line_id, best["factor_id"], "accept"
-    elif score >= ESCALATE_SCORE:
-        return line_id, "ESCALATE", "escalate"
+    elif decision == "escalate":
+        return line_id, "ESCALATE", "escalate"         # unclear fuel -> human
     else:
-        return line_id, "NO_FACTOR", "refuse"
+        return line_id, "NO_FACTOR", "refuse"           # true noise -> refuse
 
 
 def main():

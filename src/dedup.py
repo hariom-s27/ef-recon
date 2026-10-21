@@ -11,7 +11,7 @@ from paths import DATA_DIR, OUTPUT_DIR
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
-from match import load_factors, exact_match, semantic_match, ACCEPT_SCORE, ESCALATE_SCORE
+from match import load_factors, match_line, resolve_decision
 from compute import compute_emissions
 
 
@@ -52,14 +52,11 @@ def build_lines():
             site = "pdf"
         norm = normalize_line(extracted)
 
-        if norm.activity == "unknown" or norm.unit is None:
-            continue  # skip noise/ambiguous for the total
-
-        fac = exact_match(norm, factors)
-        if not fac:
-            fac, score = semantic_match(norm, factors)
-            if score < ACCEPT_SCORE:
-                continue  # not confident -> not counted
+        raw_text = " ".join(str(v) for v in r.get("raw", {}).values()) if r["source_type"] == "csv" \
+            else r.get("raw_text", "")
+        decision, fac = match_line(norm, factors, raw_text=raw_text)
+        if resolve_decision(decision, r) != "accept":
+            continue  # only accepted lines are counted
 
         emissions = compute_emissions(norm.quantity, fac["value"])
         lines.append({

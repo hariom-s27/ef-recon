@@ -13,18 +13,18 @@ from pydantic import BaseModel, Field
 
 from normalize import normalize_line
 from extract import ExtractedLine
-from config import ACCEPT_SCORE, ESCALATE_SCORE
-from match import load_factors, exact_match, semantic_match
+from match import read_factor_rows, match_line, resolve_decision
 from compute import compute_emissions
 
 app = FastAPI(
     title="EF-Recon API",
     description="Turn messy bill lines into audit-ready carbon numbers, "
-                "with the matched factor, computed emissions, confidence, and full traceability.",
+                "with the matched factor, computed emissions, a decision "
+                "(accept / escalate / refuse), and full traceability.",
     version="1.0.0",
 )
 
-FACTORS = load_factors()   # loaded once at startup (fast)
+FACTORS = read_factor_rows()   # loaded once at startup (no cache, no embeddings needed)
 
 
 # ---------- request model (with examples + descriptions) ----------
@@ -48,8 +48,8 @@ class Result(BaseModel):
     factor_value: Optional[float] = None
     emissions_kgco2e: Optional[float] = None
     decision: str                              # accept / escalate / refuse
-    match_type: str                            # exact / semantic / none
-    confidence: float
+    match_type: str                            # exact / none
+    confidence: Optional[float] = None         # 1.0 when accepted, else None
     trace: Optional[str] = None                # the audit trail (formula + factor)
 
 
@@ -63,19 +63,9 @@ def _process_line(line: BillLine) -> Result:
                               unit=line.unit, period=line.period)
     norm = normalize_line(extracted)
 
-    if norm.activity == "unknown" or norm.unit is None:
-        return Result(activity=norm.activity, quantity=line.quantity, unit=line.unit,
-                      decision="refuse", match_type="none", confidence=0.0)
-
-    fac = exact_match(norm, FACTORS)
-    if fac:
-        confidence, match_type = 1.0, "exact"
-    else:
-        fac, confidence = semantic_match(norm, FACTORS)
-        match_type = "semantic"
-
-    decision = ("accept" if confidence >= ACCEPT_SCORE else
-                "escalate" if confidence >= ESCALATE_SCORE else "refuse")
+    # the ONE decision path (same as the dashboard and scorecard)
+    decision, fac = match_line(norm, FACTORS, raw_text=f"{line.activity} {line.unit}")
+    decision = resolve_decision(decision, {"raw": {"activity": line.activity, "unit": line.unit}})
 
     if decision == "accept":
         emissions = float(compute_emissions(norm.quantity, fac["value"]))
@@ -84,11 +74,11 @@ def _process_line(line: BillLine) -> Result:
         return Result(activity=norm.activity, quantity=norm.quantity, unit=norm.unit,
                       factor_id=fac["factor_id"], factor_value=fac["value"],
                       emissions_kgco2e=emissions, decision=decision,
-                      match_type=match_type, confidence=round(confidence, 3), trace=trace)
+                      match_type="exact", confidence=1.0, trace=trace)
 
-    return Result(activity=norm.activity, quantity=norm.quantity, unit=norm.unit,
-                  factor_id=fac["factor_id"] if fac else None,
-                  decision=decision, match_type=match_type, confidence=round(confidence, 3))
+    # escalate / refuse: no factor, no confidence score
+    return Result(activity=norm.activity, quantity=norm.quantity, unit=norm.unit or line.unit,
+                  decision=decision, match_type="none")
 
 
 # ---------- endpoints ----------
@@ -105,8 +95,9 @@ def health():
 
 @app.post("/compute", response_model=Result,
           summary="Compute emissions for ONE bill line",
-          description="Takes a single activity line and returns the matched factor, "
-                      "computed emissions, confidence, decision, and a traceability string.")
+          description="Takes a single activity line and returns the decision, and for accepted "
+                      "lines the matched factor, computed emissions and a traceability string. "
+                      "Only an exact activity + unit match is accepted.")
 def compute(line: BillLine):
     return _process_line(line)
 
