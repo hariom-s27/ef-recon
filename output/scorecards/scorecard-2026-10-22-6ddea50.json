@@ -1,0 +1,402 @@
+{
+  "commit": "6ddea50b577cad813e7285a56c664d5757471626",
+  "generated_utc": "2026-10-22T04:24:50Z",
+  "inputs": {
+    "factors": {
+      "path": "data/emission_factors.csv",
+      "sha256": "fb57e0d0054b276c43e4e6939fc5e4369d79fc5f8b9aca3c5f2946dd464f256a"
+    },
+    "gold": {
+      "path": "data/gold_labels.csv",
+      "sha256": "eed06e18b80a547ae92874692f8a4bc8bca757e49ee50baf0973b1694e7fef2c"
+    },
+    "requirements_lock": {
+      "path": "requirements-lock.txt",
+      "sha256": "201ac4777906135afc9f129d6efe5c259b9aeb8f39c2ba0be1749cf08a634d7f"
+    }
+  },
+  "label": "post-internship (2026-10-22, 6ddea50) · provisional · DEV-only (pre-split)",
+  "metrics": {
+    "coverage_should_match": {
+      "ci95_wilson": [
+        0.889744604539564,
+        1.0
+      ],
+      "k": 31,
+      "n": 31,
+      "p": 1.0
+    },
+    "determination_accuracy_gold_qty_unit_given__all_rows": {
+      "ci95_wilson": [
+        0.6867017537354022,
+        0.9070561048589584
+      ],
+      "k": 37,
+      "n": 45,
+      "p": 0.8222222222222222
+    },
+    "determination_accuracy_gold_qty_unit_given__rule_resolvable": {
+      "ci95_wilson": [
+        0.8650512388404787,
+        0.9953394123142312
+      ],
+      "k": 37,
+      "n": 38,
+      "p": 0.9736842105263158
+    },
+    "escalation_accuracy": {
+      "ci95_wilson": [
+        0.6456695649333125,
+        0.9999999999999999
+      ],
+      "k": 7,
+      "n": 7,
+      "p": 1.0
+    },
+    "precision_at_1_accepted": {
+      "ci95_wilson": [
+        0.838058948352751,
+        0.9942827784745831
+      ],
+      "k": 30,
+      "n": 31,
+      "p": 0.967741935483871
+    },
+    "refusal_accuracy": {
+      "ci95_wilson": null,
+      "k": 0,
+      "n": 0,
+      "p": null
+    }
+  },
+  "mode": "rules-only (no LLM, no judge)",
+  "needs_llm_ids": [
+    "ELEC-0008",
+    "ELEC-0015",
+    "ERP-0002",
+    "ERP-0005",
+    "ERP-0006",
+    "ERP-0007",
+    "HARD-0011"
+  ],
+  "per_row": [
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0001",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0002",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0003",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0004",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0005",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0006",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0007",
+      "outcome": "correct"
+    },
+    {
+      "decision": "needs_llm",
+      "factor_id": null,
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0008",
+      "outcome": "needs_llm"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0009",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0010",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0011",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0012",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0013",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0014",
+      "outcome": "correct"
+    },
+    {
+      "decision": "needs_llm",
+      "factor_id": null,
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0015",
+      "outcome": "needs_llm"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0001",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0002",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0003",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0004",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0005",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0006",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0007",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0008",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0009",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "gold": "EF-DIESEL-L",
+      "line_id": "DSL-0010",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "ERP-0001",
+      "outcome": "correct"
+    },
+    {
+      "decision": "needs_llm",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "ERP-0002",
+      "outcome": "needs_llm"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-LPG-L",
+      "gold": "EF-LPG-L",
+      "line_id": "ERP-0003",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-PETROL-L",
+      "gold": "EF-PETROL-L",
+      "line_id": "ERP-0004",
+      "outcome": "correct"
+    },
+    {
+      "decision": "needs_llm",
+      "factor_id": null,
+      "gold": "NO_FACTOR",
+      "line_id": "ERP-0005",
+      "outcome": "needs_llm"
+    },
+    {
+      "decision": "needs_llm",
+      "factor_id": null,
+      "gold": "NO_FACTOR",
+      "line_id": "ERP-0006",
+      "outcome": "needs_llm"
+    },
+    {
+      "decision": "needs_llm",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "ERP-0007",
+      "outcome": "needs_llm"
+    },
+    {
+      "decision": "escalate",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "HARD-0001",
+      "outcome": "correct"
+    },
+    {
+      "decision": "escalate",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "HARD-0002",
+      "outcome": "correct"
+    },
+    {
+      "decision": "escalate",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "HARD-0003",
+      "outcome": "correct"
+    },
+    {
+      "decision": "escalate",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "HARD-0004",
+      "outcome": "correct"
+    },
+    {
+      "decision": "escalate",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "HARD-0005",
+      "outcome": "correct"
+    },
+    {
+      "decision": "escalate",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "HARD-0006",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-PNG-KWH",
+      "gold": "EF-NATGAS-KWH",
+      "line_id": "HARD-0007",
+      "outcome": "wrong"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-NATGAS-M3",
+      "gold": "EF-NATGAS-M3",
+      "line_id": "HARD-0008",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "HARD-0009",
+      "outcome": "correct"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "HARD-0010",
+      "outcome": "correct"
+    },
+    {
+      "decision": "needs_llm",
+      "factor_id": null,
+      "gold": "EF-IN-ELEC-SOLAR",
+      "line_id": "HARD-0011",
+      "outcome": "needs_llm"
+    },
+    {
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "gold": "EF-IN-ELEC-GRID",
+      "line_id": "HARD-0012",
+      "outcome": "correct"
+    },
+    {
+      "decision": "escalate",
+      "factor_id": null,
+      "gold": "ESCALATE",
+      "line_id": "HARD-0013",
+      "outcome": "correct"
+    }
+  ],
+  "protocol": "ADR-001",
+  "python": "3.12.10",
+  "schema": "efrecon-scorecard/1"
+}

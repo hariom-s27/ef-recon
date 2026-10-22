@@ -99,9 +99,9 @@ factors = get_factors()
 uploaded = st.file_uploader("Upload a bill (CSV or PDF) — or use the built-in sample", type=["csv", "pdf"])
 records = []
 if uploaded:
-    from pathlib import Path
-    tmp = Path(DATA_DIR) / uploaded.name
-    tmp.write_bytes(uploaded.getbuffer())
+    import tempfile
+    from upload import save_upload
+    tmp = save_upload(uploaded.name, uploaded.getbuffer(), tempfile.mkdtemp(prefix="efrecon_upload_"))
     records = ingest_csv(tmp) if uploaded.name.endswith(".csv") else ingest_pdf(tmp)
 else:
     for name in ["electricity_bills.csv", "diesel_invoices.csv", "erp_spend_export.csv"]:
@@ -200,7 +200,7 @@ with tab4:
 
 with tab5:
     st.subheader("Real BRSR filing — Tata Motors FY2024-25")
-    st.caption("The engine on a real 111-page regulatory PDF — no hardcoded page, no LLM. "
+    st.caption("The engine on a real 117-page regulatory PDF — no hardcoded page, no LLM. "
                "It finds the Principle 6 energy table itself, catches a real double-count, "
                "and recomputes Scope 2 with source-page lineage.")
 
@@ -231,7 +231,7 @@ with tab5:
             cc2.metric("Combined block reported", f"{comb_elec:,.0f} GJ")
             if comb_elec and abs(sum_elec - comb_elec) / comb_elec < 0.01:
                 st.error("⚠️ **Double-count detected** — the filing reports both the parts *and* "
-                         "their combined total. Counting all three would inflate emissions ~2×. "
+                         "their combined total. Counting all three would inflate grid electricity 2.0×. "
                          "The engine counts it **once**.")
 
         # ---- Step 3: the recompute with lineage ----
@@ -244,11 +244,11 @@ with tab5:
             mwh = gj * GJ_TO_KWH / 1000
             rows.append({"Entity": r["entity"], "Source page": r["source_page"],
                          "Grid (GJ)": f"{gj:,.0f}", "→ MWh": f"{mwh:,.0f}",
-                         "→ tCO₂e (Scope 2)": f"{mwh * CEA_FACTOR:,.0f}"})
+                         "→ tCO₂ (Scope 2, CO₂-only)": f"{mwh * CEA_FACTOR:,.0f}"})
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         st.caption(f"Location-based Scope 2 using CEA v21 grid factor ({CEA_FACTOR} tCO₂/MWh), "
                    "traced to the exact source page. Note: the company's *market-based* figure is "
-                   "lower — ~46% of their electricity is renewable (two valid GHG Protocol methods).")
+                   "lower — 45.8% of the combined block's electricity is renewable (two valid GHG Protocol methods).")
 
 with tab6:
     st.subheader("Defend & red-team any number")
