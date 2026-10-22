@@ -64,6 +64,8 @@ Determination accuracy (gold qty/unit given): the engine receives the gold quant
 
 *History:* Internship (Jul 2026): 100% (n=34) was determination accuracy on clean input; not reproducible from this commit, superseded by the scorecard above.
 
+Confirmation run at 0b958f8 (schema 2, platform-independent input hashes): identical metrics — [`output/scorecards/scorecard-2026-10-22-0b958f8.json`](output/scorecards/scorecard-2026-10-22-0b958f8.json).
+
 ## 6. The core engineering lesson
 
 > **The accuracy problem was never the matcher or the judge — it was trusting the LLM for something a deterministic domain-rule layer does better.**
