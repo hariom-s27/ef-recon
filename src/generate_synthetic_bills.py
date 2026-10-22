@@ -20,6 +20,7 @@ import argparse, csv, os, random, sys, datetime
 from pathlib import Path
 
 from paths import DATA_DIR as DATA
+from factor_library import read_active
 
 SEED = 42                     # deterministic => reproducible gold set
 
@@ -78,9 +79,8 @@ def main(out_dir):
     random.seed(SEED)
 
     # ---- load the factor library (read-only from data/) ----------------------
-    with open(DATA / "emission_factors.csv", newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            FACTORS[row["factor_id"]] = row
+    for row in read_active(DATA / "emission_factors.csv"):
+        FACTORS[row["factor_id"]] = row
 
     # =========================================================================
     # 1) ELECTRICITY BILLS  (Scope 2)  -- header + unit chaos, duplicates, missing period

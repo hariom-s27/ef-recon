@@ -89,7 +89,8 @@ def main():
             }
             results.append(record)
             print(f"{line_id:12} {norm.activity:12} {str(norm.quantity):>10} {norm.unit:5} "
-                  f"× {fac['value']:<7} = {str(emissions):>12} kgCO2e   [{fac['factor_id']}, {how}]")
+                  f"× {fac['value']:<7} = {str(emissions):>12} kgCO2e   "
+                  f"[{fac['factor_id']}, {how}, value_status={fac['value_status']}]")
         else:
             print(f"{line_id:12} {norm.activity:12} -> ⚠️ ESCALATE - not counted")
 

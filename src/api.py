@@ -48,6 +48,8 @@ class Result(BaseModel):
     unit: str
     factor_id: Optional[str] = None
     factor_value: Optional[float] = None
+    value_status: Optional[str] = None
+    factor_row_id: Optional[str] = None
     emissions_kgco2e: Optional[float] = None
     decision: str                              # accept / escalate / refuse
     match_type: str                            # exact / none
@@ -73,8 +75,13 @@ def _process_line(line: BillLine) -> Result:
         emissions = float(compute_emissions(norm.quantity, fac["value"]))
         trace = (f"{norm.quantity} {norm.unit} × {fac['value']} "
                  f"(factor {fac['factor_id']}) = {emissions} kgCO2e")
+        validity = (f"{fac['valid_from']}..{fac['valid_to']}"
+                    if fac["valid_from"] else "always valid")
+        trace += (f" [value_status={fac['value_status']}; row={fac['row_id']}; "
+                  f"REPORTING_FY={fac['reporting_fy']}; validity={validity}]")
         return Result(activity=norm.activity, quantity=norm.quantity, unit=norm.unit,
                       factor_id=fac["factor_id"], factor_value=fac["value"],
+                      value_status=fac["value_status"], factor_row_id=fac["row_id"],
                       emissions_kgco2e=emissions, decision=decision,
                       match_type="exact", confidence=1.0, trace=trace)
 

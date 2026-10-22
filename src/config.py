@@ -4,6 +4,9 @@ Change a value here and it applies everywhere. No hunting through files.
 """
 from paths import OUTPUT_DIR
 
+# ---- factor library (ADR-003 release efl-1) ----
+REPORTING_FY = "2025-26"
+
 # ---- matching thresholds (0..1) ----
 # Not used by any decision since P01 (match_line decides; semantic_match is suggestion-only). Kept for semantic_match suggestions.
 ACCEPT_SCORE   = 0.60      # >= this -> auto-accept the match

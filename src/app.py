@@ -62,6 +62,7 @@ def process(records, factors):
 
         row = {"line_id": line_id, "activity": norm.activity, "quantity": norm.quantity,
                "unit": norm.unit, "factor_id": "", "factor_value": None,
+               "value_status": None, "factor_row_id": None,
                "emissions_kgco2e": None, "decision": "", "source": source, "duplicate": False}
 
         raw_text = " ".join(str(v) for v in r.get("raw", {}).values()) if r["source_type"] == "csv" \
@@ -70,6 +71,9 @@ def process(records, factors):
         decision = resolve_decision(decision, r)
 
         if decision == "accept":
+            row.update(value_status=fac["value_status"], factor_row_id=fac["row_id"],
+                       reporting_fy=fac["reporting_fy"], valid_from=fac["valid_from"],
+                       valid_to=fac["valid_to"])
             # dedup check
             fp = fingerprint(norm, site)
             if fp in seen:
@@ -111,6 +115,9 @@ else:
     records += ingest_pdf(DATA_DIR / "electricity_bill_sample.pdf")
 
 df = pd.DataFrame(process(records, factors))
+
+if df["value_status"].eq("TO_CONFIRM").any():
+    st.warning("TO_CONFIRM: some factor values need source-file verification before audit use.")
 
 # ---- headline metrics ----
 bases = factor_bases()
@@ -176,7 +183,7 @@ with tab1:
 with tab2:
     st.subheader("All lines")
     show = df[["line_id", "activity", "quantity", "unit", "factor_id",
-               "emissions_kgco2e", "decision", "source"]]
+               "value_status", "factor_row_id", "emissions_kgco2e", "decision", "source"]]
     st.dataframe(show.style.map(colour_decision, subset=["decision"]),
                  use_container_width=True, height=500)
 
@@ -190,6 +197,11 @@ with tab3:
                    f"(factor `{row['factor_id']}`)  =  **{row['emissions_kgco2e']:,.3f} "
                    f"{unit_label(*bases.get(row['factor_id'], ('', '')))}**")
         st.info(f"📄 Source: {row['source']}")
+        st.caption(f"Factor row: {row['factor_row_id']} · value_status={row['value_status']} · "
+                   f"REPORTING_FY={row['reporting_fy']} · validity: "
+                   f"{row['valid_from'] or 'always valid'} {row['valid_to']}")
+        if row["value_status"] == "TO_CONFIRM":
+            st.warning("TO_CONFIRM: verify this factor against its primary source file.")
         st.caption("Every number traces back to its factor and source document — audit-ready.")
 
 with tab4:
