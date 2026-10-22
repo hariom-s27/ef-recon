@@ -4,22 +4,21 @@ Never silently mixes CO2-only (CEA) with CO2e AR5 (DESNZ): totals are split per
 gas/GWP basis, and a mixed total is flagged and labelled as such. Decimal only.
 """
 
-import csv
 from decimal import Decimal
 
 from paths import DATA_DIR
+from factor_library import read_active
 
 UNKNOWN = "UNKNOWN"
 
 
 def factor_bases(csv_path=None):
-    """{factor_id: (gas_basis, gwp_basis)} straight from the factor CSV (match.py is not touched)."""
+    """{factor_id: (gas_basis, gwp_basis)} for the same active rows as the matcher."""
     if csv_path is None:
         csv_path = DATA_DIR / "emission_factors.csv"
-    with open(csv_path, newline="", encoding="utf-8") as f:
-        return {row["factor_id"]: ((row.get("gas_basis") or "").strip(),
-                                   (row.get("gwp_basis") or "").strip())
-                for row in csv.DictReader(f)}
+    return {row["factor_id"]: ((row.get("gas_basis") or "").strip(),
+                               (row.get("gwp_basis") or "").strip())
+            for row in read_active(csv_path)}
 
 
 def basis_key(gas, gwp):

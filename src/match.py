@@ -9,17 +9,17 @@ Decision policy (in order):
   5. activity unknown -> ESCALATE via match_line; semantic_match may only SUGGEST candidates (no threshold decides)
 """
 
-import csv
 import pickle
-import os
 import numpy as np
 import ollama
+import config
 
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
 from paths import DATA_DIR
 from config import ACCEPT_SCORE, ESCALATE_SCORE, EMBED_MODEL
+from factor_library import read_rows, select_active, cache_path
 
 
 def embed(text):
@@ -72,36 +72,46 @@ ALLOWED_UNITS = {
 
 
 def read_factor_rows(csv_path=None):
-    """Factor rows straight from the CSV, vector=None. Pure: no cache, no pickle, no Ollama."""
+    """One active row per factor_id, vector=None. No cache, pickle or Ollama (ADR-003)."""
     if csv_path is None:
         csv_path = DATA_DIR / "emission_factors.csv"
     factors = []
-    with open(csv_path, newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            desc = f"{row['activity']} {row['unit_in']} {row['aliases'].replace('|', ' ')}"
-            factors.append({
-                "factor_id":     row["factor_id"],
-                "activity_type": factor_activity_type(row),
-                "unit_in":       row["unit_in"].strip().lower(),
-                "region":        row.get("region", "GLOBAL").strip().upper(),
-                "special":       row["factor_id"] in SPECIAL_USE,
-                "value":         float(row["factor_kgco2e_per_unit"]),
-                "source":        row.get("source", ""),
-                "source_year":   row.get("source_year", ""),
-                "desc":          desc,
-                "vector":        None,
-            })
+    for row in select_active(read_rows(csv_path), config.REPORTING_FY):
+        desc = f"{row['activity']} {row['unit_in']} {row['aliases'].replace('|', ' ')}"
+        factors.append({
+            "factor_id":     row["factor_id"],
+            "activity_type": factor_activity_type(row),
+            "unit_in":       row["unit_in"].strip().lower(),
+            "region":        row.get("region", "GLOBAL").strip().upper(),
+            "special":       row["factor_id"] in SPECIAL_USE,
+            "value":         float(row["factor_kgco2e_per_unit"]),
+            "source":        row.get("source", ""),
+            "source_year":   row.get("source_year", ""),
+            "row_id":        row["row_id"],
+            "value_status":  row["value_status"],
+            "reporting_fy":  config.REPORTING_FY,
+            "valid_from":    row["valid_from"],
+            "valid_to":      row["valid_to"],
+            "variant":       row["variant"],
+            "source_version": row["source_version"],
+            "source_url":    row["source_url"],
+            "source_locator": row["source_locator"],
+            "desc":          desc,
+            "vector":        None,
+        })
     return factors
 
 
 def load_factors():
-    cache = DATA_DIR.parent / "output" / "factors_cache.pkl"
     csv_path = DATA_DIR / "emission_factors.csv"
-    # reuse cache if it's newer than the CSV
-    if cache.exists() and os.path.getmtime(cache) > os.path.getmtime(csv_path):
-        return pickle.load(open(cache, "rb"))
-
     factors = read_factor_rows(csv_path)
+    cache = cache_path(csv_path, config.REPORTING_FY)
+    if cache.exists():
+        with open(cache, "rb") as stream:
+            cached = pickle.load(stream)
+        if [row.get("row_id") for row in cached] == [row["row_id"] for row in factors]:
+            return cached
+
     for fac in factors:
         fac["vector"] = embed(fac["desc"])
     cache.parent.mkdir(exist_ok=True)

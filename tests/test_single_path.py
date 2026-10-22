@@ -131,7 +131,7 @@ def test_unit_word_means_kwh_only_for_electricity(activity, unit, quantity, expe
 def test_read_factor_rows_is_pure(_no_cache_no_network):
     rows = match.read_factor_rows()
     with open(DATA_DIR / "emission_factors.csv", newline="", encoding="utf-8") as f:
-        csv_ids = [row["factor_id"] for row in csv.DictReader(f)]
+        csv_ids = list(dict.fromkeys(row["factor_id"] for row in csv.DictReader(f)))
 
     assert len(rows) == 11
     assert all(r["vector"] is None for r in rows)

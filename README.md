@@ -91,7 +91,9 @@ Python 3.12, pandas, pdfplumber, Pydantic, Ollama (local qwen extractor + llama 
 
 ## 9. Data sources
 
-Currently loaded: CEA CO₂ Baseline Database v21.0 (FY2024-25). Update to v22.0 pending. CEA publishes a single national grid factor; no regional CEA factor exists.
+Loaded: CEA v22.0 (Aug 2026), FY 2025-26, incl.-imports default; v21 rows kept as superseded. Reporting FY default 2025-26 (config.REPORTING_FY). Fuel factors: value status TO_CONFIRM until the DESNZ flat files are checked.
+
+CEA publishes a single national grid factor; no regional CEA factor exists. See [ADR-003](docs/adr/ADR-003-factor-library-release-1.md) for release efl-1 selection and provenance.
 
 DEFRA GHG conversion factors (fuels), GHG Protocol, IPCC EFDB. All factors are version-stamped; verify before audit use.
 
@@ -129,6 +131,10 @@ Run: `cd src && python -m uvicorn api:app` (docs at `/docs`; `GET /health` repor
 | `match_type` | `exact` (on accept) \| `none` |
 | `confidence` | `1.0` on accept, `null` otherwise (no similarity score) |
 | `factor_id`, `factor_value`, `emissions_kgco2e`, `trace` | set on accept only |
+| `value_status` | `PRIMARY` or `TO_CONFIRM` on accept; `null` otherwise; present on every result |
+| `factor_row_id` | versioned factor-row identifier on accept; `null` otherwise |
+
+Accepted-result traces include the configured reporting FY, factor validity and value status. `TO_CONFIRM` values are visibly flagged in the dashboard and compute's printed output; the compute CSV header stays unchanged.
 
 One decision function (`match.match_line` + `match.resolve_decision`) is shared by the API, dashboard and scorecard:
 - **accept** only on an exact activity + unit match in the factor library;
@@ -137,6 +143,7 @@ One decision function (`match.match_line` + `match.resolve_decision`) is shared 
 
 ## 12. Honest limitations
 
+- Release 1 picks one factor row per reporting FY, not per bill period (Block 1).
 - Tested on synthetic + a real BRSR filing; accuracy intervals are wide due to small n.
 - The LLM judge has not been validated against human labels (only a small smoke test); judge numbers are not reported.
 - The 45-row gold set has been used during development (DEV only); a sealed held-out test set is planned.
