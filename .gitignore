@@ -21,4 +21,11 @@ __pycache__/
 Thumbs.db
 
 # Generated outputs (regenerable, machine/run-specific)
-output/
+output/*
+
+# local audit/report folders and raw downloads (never commit)
+_audit/
+data_raw/
+.venv*/
+# committed evidence (P03+): allow scorecards under the ignored output/
+!output/scorecards/

@@ -84,6 +84,7 @@ def calibration(data, n_bins=5):
         avg_conf = sum(c for c, _ in b) / len(b)
         accuracy = sum(1 for _, ok in b if ok) / len(b)
         gap = abs(avg_conf - accuracy)
+        # after P01: only accepted lines are scored, all with confidence 1.0, so ECE = 1 - precision
         ece += (len(b) / n) * gap                   # weighted gap
         lo, hi = i / n_bins, (i + 1) / n_bins
         print(f"{lo:.1f}-{hi:.1f}      {len(b):>6} {avg_conf:>9.3f} {accuracy:>9.3f} {gap:>7.3f}")
@@ -91,23 +92,34 @@ def calibration(data, n_bins=5):
 
 
 # ---------- regression test ----------
-def regression_check(precision):
+def regression_check(precision, update_baseline=False):
+    """Compare against the saved baseline. Writes baseline.json ONLY when update_baseline=True
+    and the check did not FAIL. Returns "PASS", "FAIL" or "NO_BASELINE"."""
     if BASELINE_FILE.exists():
         baseline = json.loads(BASELINE_FILE.read_text())["precision"]
         print(f"\nRegression check: baseline={baseline:.1%}, now={precision:.1%}")
         if precision + 1e-9 >= baseline:
+            status = "PASS"
             print("   ✅ PASS — accuracy did not drop.")
         else:
+            status = "FAIL"
             print("   ⚠️  FAIL — accuracy DROPPED! You may have broken something.")
     else:
-        print("\nNo baseline yet — saving this run as the baseline.")
+        status = "NO_BASELINE"
+        print("\nNo baseline yet.")
 
-    # save/update the baseline
-    BASELINE_FILE.write_text(json.dumps({"precision": precision}, indent=2))
-    print(f"   Baseline saved -> {BASELINE_FILE.name}")
+    # save/update the baseline only on request, and never after a FAIL
+    if not update_baseline:
+        print("   Baseline NOT updated (compare only; use --update-baseline to save).")
+    elif status == "FAIL":
+        print("   Baseline NOT updated: the check FAILED.")
+    else:
+        BASELINE_FILE.write_text(json.dumps({"precision": precision}, indent=2))
+        print(f"   Baseline saved -> {BASELINE_FILE.name}")
+    return status
 
 
-def main():
+def main(update_baseline=False):
     factors = load_factors()
     gold = load_gold()
     data, precision, correct, total = collect_predictions(factors, gold)
@@ -124,9 +136,13 @@ def main():
     else:
         print("   -> Overconfident/underconfident — confidence not fully trustworthy.")
 
-    regression_check(precision)
+    regression_check(precision, update_baseline=update_baseline)
     print("\n=============================================================")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser(description="Calibration + regression check (compare-only by default).")
+    ap.add_argument("--update-baseline", action="store_true",
+                    help="save this run as output/baseline.json (only if the check did not FAIL)")
+    main(update_baseline=ap.parse_args().update_baseline)
