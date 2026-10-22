@@ -6,7 +6,7 @@ and guard against silent accuracy drops (regression test vs a saved baseline).
 import json
 from pathlib import Path
 
-from paths import DATA_DIR, OUTPUT_DIR
+from paths import DATA_DIR, OUTPUT_DIR, ensure_output_dir
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
@@ -114,6 +114,7 @@ def regression_check(precision, update_baseline=False):
     elif status == "FAIL":
         print("   Baseline NOT updated: the check FAILED.")
     else:
+        ensure_output_dir(BASELINE_FILE.parent)
         BASELINE_FILE.write_text(json.dumps({"precision": precision}, indent=2))
         print(f"   Baseline saved -> {BASELINE_FILE.name}")
     return status

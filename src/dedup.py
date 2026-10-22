@@ -13,6 +13,7 @@ from extract import extract_with_rules, extract_with_llm, looks_ambiguous
 from normalize import normalize_line
 from match import load_factors, match_line, resolve_decision
 from compute import compute_emissions
+from totals import factor_bases, sum_by_basis, report_lines
 
 
 # ---------- build a fingerprint for one line ----------
@@ -34,6 +35,7 @@ def get_site(record):
 def build_lines():
     """Run the pipeline and return a list of accepted, computed lines."""
     factors = load_factors()
+    bases = factor_bases()
     records = []
     records += ingest_csv(DATA_DIR / "electricity_bills.csv")
     records += ingest_csv(DATA_DIR / "diesel_invoices.csv")
@@ -59,10 +61,14 @@ def build_lines():
             continue  # only accepted lines are counted
 
         emissions = compute_emissions(norm.quantity, fac["value"])
+        gas, gwp = bases.get(fac["factor_id"], ("", ""))
         lines.append({
             "line_id": line_id,
             "fingerprint": fingerprint(norm, site),
             "emissions": emissions,
+            "factor_id": fac["factor_id"],
+            "gas_basis": gas,
+            "gwp_basis": gwp,
         })
     return lines
 
@@ -91,8 +97,12 @@ def main():
 
     kept, duplicates = deduplicate(lines)
 
-    total_raw   = sum((l["emissions"] for l in lines), Decimal("0"))
-    total_clean = sum((l["emissions"] for l in kept),  Decimal("0"))
+    # summed per gas/GWP basis (ADR-002): never one silent kgCO2e across CO2-only + CO2e AR5
+    raw   = sum_by_basis({"emissions_kg": l["emissions"], "gas_basis": l["gas_basis"],
+                          "gwp_basis": l["gwp_basis"]} for l in lines)
+    clean = sum_by_basis({"emissions_kg": l["emissions"], "gas_basis": l["gas_basis"],
+                          "gwp_basis": l["gwp_basis"]} for l in kept)
+    total_raw, total_clean = raw["total_kg"], clean["total_kg"]
 
     print("\n=================  DEDUPLICATION REPORT  =================\n")
     print(f"Total lines:        {len(lines)}")
@@ -103,12 +113,14 @@ def main():
         print("\nDuplicate lines removed from the total:")
         for d in duplicates:
             print(f"   {d['line_id']} is a duplicate of {d['duplicate_of']} "
-                  f"(both {d['emissions']} kgCO2e)")
+                  f"(both {d['emissions']} kg, {d['gas_basis']}/{d['gwp_basis']})")
 
     print("\n-------------------------------------------")
-    print(f"Total BEFORE dedup: {total_raw} kgCO2e")
-    print(f"Total AFTER  dedup: {total_clean} kgCO2e")
-    print(f"Difference removed: {total_raw - total_clean} kgCO2e")
+    print(f"Total BEFORE dedup (plain sum): {total_raw} kg")
+    print("\n".join(report_lines(raw)))
+    print(f"Total AFTER  dedup (plain sum): {total_clean} kg")
+    print("\n".join(report_lines(clean)))
+    print(f"Difference removed: {total_raw - total_clean} kg")
     print("=========================================================")
 
 

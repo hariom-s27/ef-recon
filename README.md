@@ -8,7 +8,7 @@ Built for Indian reporting (BRSR / CCTS): CEA grid factor for Scope 2, DESNZ/DEF
 
 ## 1. The problem
 
-Companies must report emissions (BRSR, CCTS, CBAM), but their data is scattered across utility bills, fuel invoices, and ERP exports — in inconsistent units, headers, and formats. The hardest, most error-prone step is **matching each line to the correct emission factor and proving that number to an auditor.** Most teams still do this manually in spreadsheets.
+Companies must report emissions (BRSR, CCTS, CBAM), but their data is scattered across utility bills, fuel invoices, and ERP exports — in inconsistent units, headers, and formats. The hardest, most error-prone step is **matching each line to the correct emission factor and proving that number to an auditor.**
 
 ## 2. What EF-Recon does
 
@@ -38,7 +38,7 @@ Bills (CSV/PDF)
 |---|---|
 | **Rules first, LLM only for genuine free text** | Deterministic domain rules are more accurate *and* faster than an LLM for known patterns. (See §6 — the core lesson.) |
 | **Activity-first matching policy** | Two factors can share a unit (electricity and gas both use kWh). Matching on unit alone force-matches the wrong factor; activity must decide first. |
-| **Allow-list of known activities/units** | The engine escalates fuels it has no factor for (furnace oil, pet coke) instead of guessing — honest escalation is the differentiator. |
+| **Allow-list of known activities/units** | The engine escalates fuels it has no factor for (furnace oil, pet coke) instead of guessing. In the EF-matching works we surveyed, none reports typed refusals, confidence intervals, or a miss rate on declined items; EF-Recon aims to measure all three (nearest precedents: EFMatch-LLM, GLAD). |
 | **Different-family LLM judge (llama vs qwen extractor)** | A model judging its own family over-rewards itself (self-preference bias); a separate family reduces that bias (agreement with human labels not yet measured). |
 | **Wilson confidence interval, always reported** | Honest small-sample uncertainty. A wide CI stated is stronger than a fake-precise point estimate. |
 | **Special-use factors excluded from auto-match** | The Combined Margin factor is CDM-only; the engine never auto-applies it to corporate Scope 2. |
@@ -46,6 +46,8 @@ Bills (CSV/PDF)
 ## 5. Results (provisional)
 
 **post-internship (2026-10-22, 6ddea50) · provisional · DEV-only (pre-split)** — source: [`output/scorecards/scorecard-2026-10-22-6ddea50.json`](output/scorecards/scorecard-2026-10-22-6ddea50.json) (rules-only, no LLM, no judge; protocol ADR-001).
+
+Protocol: [docs/adr/ADR-001](docs/adr/ADR-001-block0-provisional-scorecard.md) (+ [amendment](docs/adr/ADR-001-amend-2026-10-22.md)).
 
 | Metric | k/n | p | 95% Wilson CI |
 |---|---|---|---|
@@ -115,7 +117,8 @@ python -m streamlit run src/app.py    # the dashboard
 Run: `cd src && python -m uvicorn api:app` (docs at `/docs`; `GET /health` reports the loaded factor count).
 
 - `POST /compute` — one line `{activity, quantity, unit, period?}` → one result.
-- `POST /batch` — a list of lines → `{total_kgco2e, total_tco2e, lines_received, lines_accepted, results}`.
+- `POST /batch` — a list of lines → `{total_kgco2e, total_tco2e, basis_mixed, totals_by_basis, total_label, lines_received, lines_accepted, results}`.
+- `total_kgco2e` / `total_tco2e` are a plain sum of all accepted lines. Factor bases differ (CEA grid electricity is CO₂-only, DESNZ/DEFRA fuels are CO₂e AR5), so when `basis_mixed` is true, `totals_by_basis` (exact Decimal strings keyed `gas/gwp`, e.g. `CO2/CO2`, `CO2e/AR5`) holds the reportable figures and `total_label` says MIXED. See [ADR-002](docs/adr/ADR-002-mixed-basis-totals.md).
 - `quantity ≤ 0`, or an empty `/batch` list → HTTP 422.
 
 | Field | Values |

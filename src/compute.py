@@ -12,7 +12,8 @@ from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
 from match import load_factors, match_line, resolve_decision
-from paths import DATA_DIR, OUTPUT_DIR
+from paths import DATA_DIR, OUTPUT_DIR, ensure_output_dir
+from totals import factor_bases, sum_by_basis, report_lines
 
 
 def to_decimal(value):
@@ -46,7 +47,8 @@ def main():
     records += ingest_pdf(DATA_DIR / "electricity_bill_sample.pdf")
 
     results = []          # we'll collect finished, audit-ready records here
-    total = Decimal("0")  # running total of accepted emissions
+    counted = []          # accepted emissions + their gas/GWP basis (summed per basis, ADR-002)
+    bases = factor_bases()
 
     print("\n========== SP-05: COMPUTED EMISSIONS ==========\n")
     for r in records:
@@ -71,7 +73,8 @@ def main():
             print(f"{line_id:12} REFUSE (no clear activity/unit)")
         elif decision == "accept":
             emissions = compute_emissions(norm.quantity, fac["value"])
-            total += emissions
+            gas, gwp = bases.get(fac["factor_id"], ("", ""))
+            counted.append({"emissions_kg": emissions, "gas_basis": gas, "gwp_basis": gwp})
             # build the FULL audit-ready record
             record = {
                 "line_id":        line_id,
@@ -91,13 +94,15 @@ def main():
             print(f"{line_id:12} {norm.activity:12} -> ⚠️ ESCALATE - not counted")
 
     # ----- summary -----
-    total_tonnes = (total / Decimal("1000")).quantize(Decimal("0.001"))
+    totals = sum_by_basis(counted)
+    total_tonnes = (totals["total_kg"] / Decimal("1000")).quantize(Decimal("0.001"))
     print("\n-------------------------------------------")
     print(f"Lines counted : {len(results)}")
-    print(f"TOTAL emissions: {total} kgCO2e  =  {total_tonnes} tCO2e")
+    print(f"TOTAL emissions (plain sum): {totals['total_kg']} kg  =  {total_tonnes} t")
+    print("\n".join(report_lines(totals)))
 
     # save the audit-ready results to a file
-    out = OUTPUT_DIR / "computed_emissions.csv"
+    out = ensure_output_dir(OUTPUT_DIR) / "computed_emissions.csv"
     with open(out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(results[0].keys()))
         writer.writeheader()
