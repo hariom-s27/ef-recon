@@ -5,6 +5,7 @@ Change a value here and it applies everywhere. No hunting through files.
 from paths import OUTPUT_DIR
 
 # ---- matching thresholds (0..1) ----
+# Not used by any decision since P01 (match_line decides; semantic_match is suggestion-only). Kept for semantic_match suggestions.
 ACCEPT_SCORE   = 0.60      # >= this -> auto-accept the match
 ESCALATE_SCORE = 0.45      # between escalate & accept -> human review; below -> refuse
 

@@ -6,7 +6,7 @@ Decision policy (in order):
   2. unit MUST match       among that activity's factors
   3. tie-break: prefer region IN over GLOBAL; NEVER auto-pick a 'special use' factor (e.g. -CM)
   4. activity matches but NO unit fits (LPG in kg, CNG in m3, diesel in gallons) -> ESCALATE
-  5. activity unknown -> semantic fallback (suggest only, gated by score thresholds)
+  5. activity unknown -> ESCALATE via match_line; semantic_match may only SUGGEST candidates (no threshold decides)
 """
 
 import csv

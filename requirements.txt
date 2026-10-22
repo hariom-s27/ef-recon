@@ -1,5 +1,4 @@
-# Direct dependencies, pinned for reproducibility. Generated 2026-10-22 on Python 3.12.10; tests: 48 passed.
-# Regenerate: see README (P03).
+# Direct dependencies, pinned on Python 3.12.10 (2026-10-22). Exact environment: requirements-lock.txt. Regenerate: see README "Run it".
 
 # runtime
 fastapi==0.159.1

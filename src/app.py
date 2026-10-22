@@ -99,9 +99,9 @@ factors = get_factors()
 uploaded = st.file_uploader("Upload a bill (CSV or PDF) — or use the built-in sample", type=["csv", "pdf"])
 records = []
 if uploaded:
-    from pathlib import Path
-    tmp = Path(DATA_DIR) / uploaded.name
-    tmp.write_bytes(uploaded.getbuffer())
+    import tempfile
+    from upload import save_upload
+    tmp = save_upload(uploaded.name, uploaded.getbuffer(), tempfile.mkdtemp(prefix="efrecon_upload_"))
     records = ingest_csv(tmp) if uploaded.name.endswith(".csv") else ingest_pdf(tmp)
 else:
     for name in ["electricity_bills.csv", "diesel_invoices.csv", "erp_spend_export.csv"]:
