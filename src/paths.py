@@ -10,4 +10,9 @@ BASE_DIR = Path(__file__).parent.parent   # the ef-recon project root (one level
 DATA_DIR = BASE_DIR / "data"
 OUTPUT_DIR = BASE_DIR / "output"
 
-OUTPUT_DIR.mkdir(exist_ok=True)
+
+def ensure_output_dir(path=None):
+    """Create the output folder just before a write (never at import). Default: OUTPUT_DIR."""
+    path = OUTPUT_DIR if path is None else path
+    path.mkdir(parents=True, exist_ok=True)
+    return path

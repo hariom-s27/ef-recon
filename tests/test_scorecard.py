@@ -1,8 +1,10 @@
 """P03: rules-only scorecard (ADR-001) — no LLM, no judge, never overwrites, import touches no file.
 Every output goes to tmp_path; extract_with_llm and judge_one are tripwired to raise."""
 import builtins
+import hashlib
 import importlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -39,7 +41,7 @@ def _gold(line_id, desc, gold, qty="", unit=""):
 
 def _meta():
     return {"label": "test", "generated_utc": "2026-10-22T00:00:00Z", "python": "3.12.10",
-            "inputs": {"gold": {"path": "g", "sha256": "0" * 64}}}
+            "inputs": {"gold": {"path": "g", "git_blob": "0" * 40, "sha256": "0" * 64}}}
 
 
 # ---------- run_engine(allow_llm=False) ----------
@@ -111,7 +113,7 @@ def test_write_scorecard_fields(tmp_path):
     doc = json.loads(raw.decode("utf-8"))
     assert set(doc) == REQUIRED_FIELDS
     assert set(doc["metrics"]) == METRIC_NAMES
-    assert doc["schema"] == "efrecon-scorecard/1"
+    assert doc["schema"] == "efrecon-scorecard/2"
     assert doc["protocol"] == "ADR-001"
     assert doc["mode"] == "rules-only (no LLM, no judge)"
     assert doc["commit"] == FAKE_SHA
@@ -176,3 +178,51 @@ def test_main_no_llm_refuses_dirty_tree(tmp_path, monkeypatch):
         rs.main(["--no-llm", "--out-dir", str(tmp_path / "out")])
 
     assert not (tmp_path / "out").exists()
+
+
+# ---------- schema 2: inputs hashed from the committed blob (ADR-001 amendment) ----------
+def test_inputs_use_committed_blob(tmp_path, monkeypatch):
+    monkeypatch.setattr(rs, "_git_state", lambda: (FAKE_SHA, True))
+    monkeypatch.setattr(rs, "_git_object", lambda rel_path, repo=None: ("b" * 40, b"fixed\n"))
+
+    path = rs.main(["--no-llm", "--out-dir", str(tmp_path)])
+
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    sha = hashlib.sha256(b"fixed\n").hexdigest()
+    assert doc["schema"] == "efrecon-scorecard/2"
+    assert doc["inputs"] == {
+        "gold": {"path": "data/gold_labels.csv", "git_blob": "b" * 40, "sha256": sha},
+        "factors": {"path": "data/emission_factors.csv", "git_blob": "b" * 40, "sha256": sha},
+        "requirements_lock": {"path": "requirements-lock.txt", "git_blob": "b" * 40, "sha256": sha},
+    }
+
+
+def test_input_hash_ignores_working_tree_eol(tmp_path, monkeypatch):
+    """Same committed content, LF or CRLF on disk -> identical inputs entry (throwaway repo in tmp_path)."""
+    empty_cfg = tmp_path / "empty.gitconfig"
+    empty_cfg.write_bytes(b"")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty_cfg))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "user.name=t",
+                               "-c", "user.email=t@example.invalid", *args],
+                              cwd=repo, capture_output=True, check=True).stdout
+
+    lf = b"line_id,value\nA,1\nB,2\n"
+    (repo / "a.csv").write_bytes(lf)
+    git("init", "-q")
+    git("add", "a.csv")
+    git("commit", "-q", "-m", "lf")
+
+    entry_lf = rs._input_entry("a.csv", repo=repo)
+    (repo / "a.csv").write_bytes(lf.replace(b"\n", b"\r\n"))
+    entry_crlf = rs._input_entry("a.csv", repo=repo)
+
+    assert (repo / "a.csv").read_bytes() != lf                 # disk bytes really differ
+    assert entry_lf == entry_crlf
+    assert entry_lf == {"path": "a.csv",
+                        "git_blob": git("rev-parse", "HEAD:a.csv").decode("ascii").strip(),
+                        "sha256": hashlib.sha256(lf).hexdigest()}

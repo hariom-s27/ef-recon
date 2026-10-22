@@ -4,6 +4,7 @@ Logs go to BOTH the screen and a file, with timestamps + severity levels.
 """
 import logging
 from config import LOG_LEVEL, LOG_FILE
+from paths import ensure_output_dir
 
 def setup_logging():
     fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -19,6 +20,7 @@ def setup_logging():
     root.addHandler(console)
 
     # handler 2: a permanent log file
+    ensure_output_dir(LOG_FILE.parent)
     file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
     file_handler.setFormatter(logging.Formatter(fmt, datefmt))
     root.addHandler(file_handler)

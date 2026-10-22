@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from paths import DATA_DIR
+from paths import DATA_DIR, OUTPUT_DIR
 from ingest import ingest_csv, ingest_pdf
 from extract import extract_with_rules, extract_with_llm
 from normalize import normalize_line
@@ -19,6 +19,8 @@ from dedup import fingerprint, get_site
 from brsr_ingest import ingest_brsr_energy, GJ_TO_KWH, CEA_FACTOR
 from defend import defend_number
 from copilot import ask_copilot
+from totals import factor_bases, sum_by_basis, unit_label
+from scorecard_view import M1, M2, latest_scorecard, format_metric
 
 st.set_page_config(page_title="EF-Recon", page_icon="🌱", layout="wide")
 
@@ -38,7 +40,7 @@ def get_factors():
 
 @st.cache_data
 def load_brsr(path):
-    """Parse the BRSR PDF once and cache it (the 111-page read is slow)."""
+    """Parse the BRSR PDF once and cache it (the 117-page read is slow)."""
     return ingest_brsr_energy(path)
 
 
@@ -111,36 +113,38 @@ else:
 df = pd.DataFrame(process(records, factors))
 
 # ---- headline metrics ----
-total = df["emissions_kgco2e"].dropna().sum()
+bases = factor_bases()
+counted = [{"emissions_kg": r["emissions_kgco2e"],
+            "gas_basis": bases.get(r["factor_id"], ("", ""))[0],
+            "gwp_basis": bases.get(r["factor_id"], ("", ""))[1]}
+           for r in df[df["emissions_kgco2e"].notna()].to_dict("records")]
+totals = sum_by_basis(counted)     # per gas/GWP basis, never a silent mixed kgCO₂e (ADR-002)
+total = float(totals["total_kg"])
 n_accept = int((df["decision"] == "accept").sum())
 n_review = int(df["decision"].isin(["escalate", "refuse"]).sum())
 n_dupes = int((df["decision"] == "duplicate").sum())
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Total emissions", f"{total:,.0f} kgCO₂e", f"{total/1000:,.2f} tCO₂e")
+c1.metric(f"Total emissions — {totals['label']}", f"{total:,.0f} kg", f"{total/1000:,.2f} t")
 
-# read the measured accuracy from the scorecard run
-import json
-sc_path = DATA_DIR.parent / "output" / "scorecard.json"
-if sc_path.exists():
-    sc = json.load(open(sc_path))
-    p = sc["precision_judge"] * 100
-    n = sc["n"]
-    esc_r, esc_t = sc["escalation"]
-    ref_r, ref_t = sc["refusal"]
-    c2.metric("Factor-match accuracy (measured)", f"{p:.0f}%",
-              f"Precision@1 · judge · n={n}")
+# measured accuracy: the newest committed scorecard (ADR-001: M1 and M2 always together)
+sc = latest_scorecard(OUTPUT_DIR / "scorecards")
+if sc:
+    m1, m2 = sc["metrics"][M1], sc["metrics"][M2]
+    c2.metric("Determination accuracy (M1 · M2)", f"{m1['k']}/{m1['n']} · {m2['k']}/{m2['n']}",
+              "rule-resolvable · all rows")
 else:
-    c2.metric("Factor-match accuracy", "run scorecard", "python src/run_scorecard.py")
+    c2.metric("Determination accuracy", "no scorecard", "python src/run_scorecard.py --no-llm")
 
 c3.metric("Duplicates caught", n_dupes, "removed from total")
 c4.metric("Needs review", n_review, "escalated / refused")
 
-if sc_path.exists():
-    st.caption(f"Measured on a hand-labeled adversarial set (n={sc['n']}): "
-               f"judge Precision@1 {sc['precision_judge']*100:.0f}%, gold cross-check "
-               f"{sc['gold_correct']}/{sc['n']} ({sc['gold_correct']/sc['n']*100:.0f}%), "
-               f"escalation {esc_r}/{esc_t}. Small n → wide interval, reported honestly.")
+if totals["basis_mixed"]:
+    st.caption("Mixed gas/GWP basis — report the subtotals, not the plain sum: " +
+               " · ".join(f"{k}: {float(v):,.3f} kg" for k, v in totals["by_basis"].items()))
+if sc:
+    st.caption(f"M1 (rule-resolvable rows) {format_metric(m1)} · M2 (all rows, needs-LLM rows "
+               f"count as not determined) {format_metric(m2)} — {sc.get('label', '')}")
 
 st.divider()
 
@@ -155,7 +159,7 @@ with tab1:
     if not accepted.empty:
         by_activity = accepted.groupby("activity")["emissions_kgco2e"].sum().reset_index()
         fig1 = px.bar(by_activity, x="activity", y="emissions_kgco2e",
-                      title="Emissions by activity (kgCO₂e)", color="activity",
+                      title="Emissions by activity (kg — electricity CO₂-only, fuels CO₂e AR5)", color="activity",
                       color_discrete_sequence=px.colors.sequential.Greens_r)
         fig1.update_layout(showlegend=False)
         left.plotly_chart(fig1, use_container_width=True)
@@ -183,7 +187,8 @@ with tab3:
         pick = st.selectbox("Pick a line", accepted["line_id"])
         row = accepted[accepted["line_id"] == pick].iloc[0]
         st.success(f"**{row['quantity']} {row['unit']}** × **{row['factor_value']}** "
-                   f"(factor `{row['factor_id']}`)  =  **{row['emissions_kgco2e']:,.3f} kgCO₂e**")
+                   f"(factor `{row['factor_id']}`)  =  **{row['emissions_kgco2e']:,.3f} "
+                   f"{unit_label(*bases.get(row['factor_id'], ('', '')))}**")
         st.info(f"📄 Source: {row['source']}")
         st.caption("Every number traces back to its factor and source document — audit-ready.")
 

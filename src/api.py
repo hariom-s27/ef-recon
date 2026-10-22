@@ -15,6 +15,7 @@ from normalize import normalize_line
 from extract import ExtractedLine
 from match import read_factor_rows, match_line, resolve_decision
 from compute import compute_emissions
+from totals import factor_bases, sum_by_basis
 
 app = FastAPI(
     title="EF-Recon API",
@@ -25,6 +26,7 @@ app = FastAPI(
 )
 
 FACTORS = read_factor_rows()   # loaded once at startup (no cache, no embeddings needed)
+BASES = factor_bases()         # factor_id -> (gas_basis, gwp_basis), for basis-aware totals (ADR-002)
 
 
 # ---------- request model (with examples + descriptions) ----------
@@ -105,23 +107,30 @@ def compute(line: BillLine):
 @app.post("/batch",
           summary="Compute emissions for MANY bill lines at once",
           description="Takes a list of activity lines. Returns each result plus the "
-                      "total accepted emissions and a small summary.")
+                      "total accepted emissions and a small summary. total_kgco2e is a plain "
+                      "sum; when basis_mixed is true, totals_by_basis holds the reportable "
+                      "figures (ADR-002).")
 def batch(lines: List[BillLine]):
     if not lines:
         raise HTTPException(status_code=422, detail="send at least one line")
 
-    results, total, accepted = [], 0.0, 0
+    results, counted = [], []
     for line in lines:
         r = _process_line(line)
         results.append(r)
         if r.decision == "accept" and r.emissions_kgco2e:
-            total += r.emissions_kgco2e
-            accepted += 1
+            gas, gwp = BASES.get(r.factor_id, ("", ""))
+            counted.append({"emissions_kg": r.emissions_kgco2e, "gas_basis": gas, "gwp_basis": gwp})
 
+    totals = sum_by_basis(counted)     # Decimal, split per gas/GWP basis
+    total = float(totals["total_kg"])
     return {
         "total_kgco2e": round(total, 3),
         "total_tco2e": round(total / 1000, 3),
+        "basis_mixed": totals["basis_mixed"],
+        "totals_by_basis": {k: str(v) for k, v in totals["by_basis"].items()},
+        "total_label": totals["label"],
         "lines_received": len(lines),
-        "lines_accepted": accepted,
+        "lines_accepted": len(counted),
         "results": results,
     }

@@ -11,6 +11,7 @@ Run:  python src/run_scorecard.py   (takes a few minutes — one LLM call per ro
 Rules-only mode (ADR-001) — no LLM, no judge, gold qty/unit given; rows the rules can't
 resolve are 'needs_llm' and not scored. Writes a NEW dated file, never overwrites:
 Run:  python src/run_scorecard.py --no-llm [--out-dir output/scorecards]   (needs a clean git tree)
+Schema 2 (ADR-001 amendment): input hashes come from the committed git blob, not working-tree bytes.
 """
 import argparse
 import csv
@@ -101,7 +102,7 @@ def run_engine(description, factors, fb_qty=None, fb_unit=None, allow_llm=True):
 
 
 # ================= rules-only scorecard (ADR-001) =================
-SCHEMA = "efrecon-scorecard/1"
+SCHEMA = "efrecon-scorecard/2"
 PROTOCOL = "ADR-001"
 MODE = "rules-only (no LLM, no judge)"
 M1 = "determination_accuracy_gold_qty_unit_given__rule_resolvable"
@@ -201,8 +202,21 @@ def write_scorecard(result, out_dir, commit_sha, meta):
     return path
 
 
-def _sha256(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+def _git_object(rel_path, repo=None):
+    """(blob id, raw committed bytes) of HEAD:<rel_path>. Bytes are never decoded, so the hash
+    is the same on every OS whatever core.autocrlf does to the working tree."""
+    cwd = BASE_DIR if repo is None else repo
+    blob = subprocess.run(["git", "rev-parse", f"HEAD:{rel_path}"], cwd=cwd, capture_output=True,
+                          check=True).stdout.decode("ascii").strip()
+    data = subprocess.run(["git", "cat-file", "blob", f"HEAD:{rel_path}"], cwd=cwd,
+                          capture_output=True, check=True).stdout
+    return blob, data
+
+
+def _input_entry(rel_path, repo=None):
+    """{path, git_blob, sha256} for one scorecard input (schema 2, ADR-001 amendment)."""
+    blob, data = _git_object(rel_path, repo)
+    return {"path": rel_path, "git_blob": blob, "sha256": hashlib.sha256(data).hexdigest()}
 
 
 def _git(*args):
@@ -241,7 +255,6 @@ def main_no_llm(out_dir):
 
     gold_path = DATA_DIR / "gold_labels.csv"
     factors_path = DATA_DIR / "emission_factors.csv"
-    lock_path = BASE_DIR / "requirements-lock.txt"
     with open(gold_path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     result = score_rows(rows, read_factor_rows(factors_path), allow_llm=False)
@@ -251,10 +264,10 @@ def main_no_llm(out_dir):
         "label": f"post-internship ({now:%Y-%m-%d}, {commit_sha[:7]}) · provisional · DEV-only (pre-split)",
         "generated_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "python": platform.python_version(),
-        "inputs": {
-            "gold": {"path": "data/gold_labels.csv", "sha256": _sha256(gold_path)},
-            "factors": {"path": "data/emission_factors.csv", "sha256": _sha256(factors_path)},
-            "requirements_lock": {"path": "requirements-lock.txt", "sha256": _sha256(lock_path)},
+        "inputs": {   # clean tree (checked above) => working tree == HEAD for every input
+            "gold": _input_entry("data/gold_labels.csv"),
+            "factors": _input_entry("data/emission_factors.csv"),
+            "requirements_lock": _input_entry("requirements-lock.txt"),
         },
     }
     path = write_scorecard(result, out_dir, commit_sha, meta)
