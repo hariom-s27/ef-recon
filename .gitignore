@@ -29,3 +29,7 @@ data_raw/
 .venv*/
 # committed evidence (P03+): allow scorecards under the ignored output/
 !output/scorecards/
+# ADR-004: sealed gold sets never enter the repo
+_sealed/
+data/gold_test*
+data/gold_val*
