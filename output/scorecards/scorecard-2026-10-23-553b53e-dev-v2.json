@@ -1,0 +1,830 @@
+{
+  "commit": "553b53ea07f8b75c1dfc93a6289ca48ac9d13d82",
+  "generated_utc": "2026-10-23T01:04:38Z",
+  "headline_wilson_lower_below_0_90": true,
+  "inputs": {
+    "factor_release": "efl-1",
+    "factors": {
+      "file_sha256": "9ed25bcc3d2013aa5aaceaff2c8615656f21ba046e094e6fb922ab347870e161",
+      "git_blob": "08e02b8fb8ee365c71c54858a1df77861259da67",
+      "path": "data/emission_factors.csv",
+      "sha256": "75ac6b815d8e8c85c33214910e16d635f960540018e0ff4beb68b4af48f4cd73"
+    },
+    "gold": {
+      "file_sha256": "6a8cb85178d9cd03ea5da32606119bb0188f5bd9d913ffccd9797188307da57d",
+      "git_blob": "a8cac1403c8d579e25fb4c239221b8a65512353b",
+      "set": "DEV",
+      "sha256": "6a8cb85178d9cd03ea5da32606119bb0188f5bd9d913ffccd9797188307da57d"
+    },
+    "spec": {
+      "file_sha256": "76297c7ad1ccb20d710db99cf3955ba893372c7915b89c91b0192cc51c09c780",
+      "git_blob": "b40f16eab6ddc03a89f9dcf8d4853f1960b585ad",
+      "path": "data/gold_spec_v2.md",
+      "sha256": "76297c7ad1ccb20d710db99cf3955ba893372c7915b89c91b0192cc51c09c780"
+    }
+  },
+  "label": "post-internship (23 Oct 2026, 553b53e), DEV v2, rules-only, provisional; 3 quantity-only template groups (7 rows) grandfathered, amendment 2026-10-23b",
+  "manifest_sha256": null,
+  "metrics": {
+    "abc_needs_llm_spec_violations": {
+      "count": 8,
+      "line_ids": [
+        "ELEC-0008",
+        "ERP-0002",
+        "ERP-0005",
+        "ERP-0006",
+        "ERP-0007",
+        "HARD-0011",
+        "REF-0011",
+        "REF-0012"
+      ]
+    },
+    "confusion": {
+      "accept": {
+        "accept": 31,
+        "escalate": 0,
+        "needs_llm": 3,
+        "refuse": 0
+      },
+      "escalate": {
+        "accept": 0,
+        "escalate": 7,
+        "needs_llm": 2,
+        "refuse": 0
+      },
+      "needs_llm": {
+        "accept": 0,
+        "escalate": 0,
+        "needs_llm": 0,
+        "refuse": 0
+      },
+      "refuse": {
+        "accept": 0,
+        "escalate": 10,
+        "needs_llm": 4,
+        "refuse": 0
+      }
+    },
+    "coverage_ABC": {
+      "ci95_wilson": [
+        0.7426407877129466,
+        0.9257921146307937
+      ],
+      "k": 48,
+      "n": 56,
+      "p": 0.8571428571428571
+    },
+    "d_count_needs_llm": {
+      "ci95_wilson": [
+        0.2065493143772374,
+        1.0
+      ],
+      "k": 1,
+      "n": 1,
+      "p": 1.0
+    },
+    "determination_accuracy_gold_qty_unit_given__ABC_fixed": {
+      "ci95_wilson": [
+        0.5299945300706022,
+        0.7708002759840811
+      ],
+      "k": 37,
+      "n": 56,
+      "p": 0.6607142857142857
+    },
+    "determination_accuracy_gold_qty_unit_given__decided": {
+      "ci95_wilson": [
+        0.6346073590999655,
+        0.8669217373308877
+      ],
+      "k": 37,
+      "n": 48,
+      "note": "not comparable to DEV M1 without this note",
+      "p": 0.7708333333333334
+    },
+    "dev_v2": {
+      "comparison_note": "not comparable to 32aa5dd: rows changed",
+      "determination_accuracy_gold_qty_unit_given__all_rows": {
+        "ci95_wilson": [
+          0.5194189535565019,
+          0.7599957799083992
+        ],
+        "k": 37,
+        "n": 57,
+        "p": 0.6491228070175439
+      },
+      "determination_accuracy_gold_qty_unit_given__rule_resolvable": {
+        "ci95_wilson": [
+          0.6346073590999655,
+          0.8669217373308877
+        ],
+        "k": 37,
+        "n": 48,
+        "p": 0.7708333333333334
+      },
+      "label": "dev_v2"
+    },
+    "escalation_recall": {
+      "ci95_wilson": [
+        0.45258896910698887,
+        0.9367748928821533
+      ],
+      "clopper_pearson_one_sided_lower_95": null,
+      "k": 7,
+      "n": 9,
+      "p": 0.7777777777777778
+    },
+    "near_miss_refusal_recall": {
+      "ci95_wilson": [
+        0.0,
+        0.27753279986288926
+      ],
+      "k": 0,
+      "n": 10,
+      "p": 0.0
+    },
+    "per_rule_id": {
+      "merged_slices": [
+        "R-ESC-GAP",
+        "R-ESC-MIX",
+        "R-ESC-UNIT"
+      ],
+      "population": "ABC",
+      "slices": {
+        "R-ACC": {
+          "ci95_wilson": [
+            0.7642739435353026,
+            0.9685960584754184
+          ],
+          "k": 30,
+          "n": 33,
+          "p": 0.9090909090909091
+        },
+        "R-REF": {
+          "ci95_wilson": [
+            2.7755575615628914e-17,
+            0.21531080273763586
+          ],
+          "k": 0,
+          "n": 14,
+          "p": 0.0
+        },
+        "other_small": {
+          "ci95_wilson": [
+            0.45258896910698887,
+            0.9367748928821533
+          ],
+          "k": 7,
+          "n": 9,
+          "p": 0.7777777777777778
+        }
+      }
+    },
+    "per_stratum": {
+      "merged_slices": [
+        "B"
+      ],
+      "population": "ABC",
+      "slices": {
+        "A": {
+          "ci95_wilson": [
+            0.7642739435353026,
+            0.9685960584754184
+          ],
+          "k": 30,
+          "n": 33,
+          "p": 0.9090909090909091
+        },
+        "C": {
+          "ci95_wilson": [
+            2.7755575615628914e-17,
+            0.21531080273763586
+          ],
+          "k": 0,
+          "n": 14,
+          "p": 0.0
+        },
+        "other_small": {
+          "ci95_wilson": [
+            0.45258896910698887,
+            0.9367748928821533
+          ],
+          "k": 7,
+          "n": 9,
+          "p": 0.7777777777777778
+        }
+      }
+    },
+    "per_writer": {
+      "merged_slices": [],
+      "population": "ABC",
+      "slices": {
+        "DEV-legacy": {
+          "ci95_wilson": [
+            0.7063379493775939,
+            0.9207332298779876
+          ],
+          "k": 37,
+          "n": 44,
+          "p": 0.8409090909090909
+        },
+        "P05a-agent": {
+          "ci95_wilson": [
+            0.0,
+            0.24249400665524096
+          ],
+          "k": 0,
+          "n": 12,
+          "p": 0.0
+        }
+      }
+    },
+    "refusal_recall": {
+      "ci95_wilson": [
+        2.7755575615628914e-17,
+        0.21531080273763586
+      ],
+      "clopper_pearson_one_sided_lower_95": null,
+      "k": 0,
+      "n": 14,
+      "p": 0.0
+    },
+    "weighted": {
+      "by_value_status": {
+        "PRIMARY": {
+          "by_basis": {
+            "CO2/CO2": {
+              "expected_kgco2e": "564436.9772674190449415",
+              "rows": 20
+            }
+          },
+          "correct_expected_kgco2e": "513149.7303089037192645",
+          "excluded_from_PRIMARY": false,
+          "expected_kgco2e": "564436.9772674190449415",
+          "rows": 20
+        },
+        "TO_CONFIRM": {
+          "by_basis": {
+            "CO2e/AR5": {
+              "expected_kgco2e": "113168.17800",
+              "rows": 14
+            }
+          },
+          "correct_expected_kgco2e": "104937.678",
+          "excluded_from_PRIMARY": true,
+          "expected_kgco2e": "113168.17800",
+          "rows": 14
+        }
+      },
+      "release": "efl-1",
+      "to_confirm_ids": [
+        "DSL-0001",
+        "DSL-0002",
+        "DSL-0003",
+        "DSL-0004",
+        "DSL-0005",
+        "DSL-0006",
+        "DSL-0007",
+        "DSL-0008",
+        "DSL-0009",
+        "DSL-0010",
+        "ERP-0003",
+        "ERP-0004",
+        "HARD-0007",
+        "HARD-0008"
+      ]
+    }
+  },
+  "mode": "rules-only (no LLM, no judge)",
+  "needs_llm_ids": [
+    "ELEC-0008",
+    "ERP-0002",
+    "ERP-0005",
+    "ERP-0006",
+    "ERP-0007",
+    "HARD-0011",
+    "PDF-0001",
+    "REF-0011",
+    "REF-0012"
+  ],
+  "per_row": [
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0001",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0002",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0003",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0004",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0005",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0006",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0007",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "ELEC-0008",
+      "outcome": "needs_llm",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0009",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0010",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0011",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0012",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0013",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ELEC-0014",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0001",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0002",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0003",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0004",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0005",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0006",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0007",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0008",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0009",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-DIESEL-L",
+      "line_id": "DSL-0010",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "ERP-0001",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "ERP-0002",
+      "outcome": "needs_llm",
+      "rule_id": "R-ESC-UNIT",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-LPG-L",
+      "line_id": "ERP-0003",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-PETROL-L",
+      "line_id": "ERP-0004",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "ERP-0005",
+      "outcome": "needs_llm",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "ERP-0006",
+      "outcome": "needs_llm",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "ERP-0007",
+      "outcome": "needs_llm",
+      "rule_id": "R-ESC-MIX",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "HARD-0001",
+      "outcome": "correct",
+      "rule_id": "R-ESC-GAP",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "HARD-0002",
+      "outcome": "correct",
+      "rule_id": "R-ESC-GAP",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "HARD-0003",
+      "outcome": "correct",
+      "rule_id": "R-ESC-GAP",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "HARD-0004",
+      "outcome": "correct",
+      "rule_id": "R-ESC-GAP",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "HARD-0005",
+      "outcome": "correct",
+      "rule_id": "R-ESC-UNIT",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "HARD-0006",
+      "outcome": "correct",
+      "rule_id": "R-ESC-UNIT",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-PNG-KWH",
+      "line_id": "HARD-0007",
+      "outcome": "wrong",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-NATGAS-M3",
+      "line_id": "HARD-0008",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "HARD-0009",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "HARD-0010",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "HARD-0011",
+      "outcome": "needs_llm",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "accept",
+      "factor_id": "EF-IN-ELEC-GRID",
+      "line_id": "HARD-0012",
+      "outcome": "correct",
+      "rule_id": "R-ACC",
+      "stratum": "A"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "HARD-0013",
+      "outcome": "correct",
+      "rule_id": "R-ESC-UNIT",
+      "stratum": "B"
+    },
+    {
+      "author": "DEV-legacy",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "PDF-0001",
+      "outcome": "needs_llm",
+      "rule_id": "R-ACC",
+      "stratum": "D"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0001",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0002",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0003",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0004",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0005",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0006",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0007",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0008",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0009",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "escalate",
+      "factor_id": null,
+      "line_id": "REF-0010",
+      "outcome": "wrong",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "REF-0011",
+      "outcome": "needs_llm",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    },
+    {
+      "author": "P05a-agent",
+      "decision": "needs_llm",
+      "factor_id": null,
+      "line_id": "REF-0012",
+      "outcome": "needs_llm",
+      "rule_id": "R-REF",
+      "stratum": "C"
+    }
+  ],
+  "protocol": "ADR-004",
+  "python": "3.12.10",
+  "schema": "efrecon-scorecard/3",
+  "shortfall": null,
+  "tree_clean": true
+}

@@ -68,6 +68,8 @@ Confirmation run at 0b958f8 (schema 2, platform-independent input hashes): ident
 
 Re-run at 32aa5dd119638a1b9503308c1a9b9c2c9387784e with factor release efl-1 (CEA v22): identical determination metrics — [output/scorecards/scorecard-2026-10-22-32aa5dd.json](output/scorecards/scorecard-2026-10-22-32aa5dd.json).
 
+post-internship (23 Oct 2026, 553b53e), DEV v2, rules-only, provisional: ABC-fixed determination accuracy 37/56 [Wilson 0.530–0.771]; decided 37/48; coverage_ABC 48/56; escalation recall 7/9; refusal recall 0/14; near-miss refusal recall 0/10; D needs_llm 1/1 — 3 quantity-only template groups (7 rows) grandfathered (amendment 2026-10-23b) — file: [`output/scorecards/scorecard-2026-10-23-553b53e-dev-v2.json`](output/scorecards/scorecard-2026-10-23-553b53e-dev-v2.json)
+
 ## 6. The core engineering lesson
 
 > **The accuracy problem was never the matcher or the judge — it was trusting the LLM for something a deterministic domain-rule layer does better.**
@@ -145,6 +147,7 @@ One decision function (`match.match_line` + `match.resolve_decision`) is shared 
 
 ## 12. Honest limitations
 
+- In rules-only mode, refusal is unreachable; refusal rows are Block 1 tripwires (ADR-004 amendment 2026-10-23 §2).
 - Release 1 picks one factor row per reporting FY, not per bill period (Block 1).
 - Tested on synthetic + a real BRSR filing; accuracy intervals are wide due to small n.
 - The LLM judge has not been validated against human labels (only a small smoke test); judge numbers are not reported.
