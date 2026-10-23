@@ -623,6 +623,16 @@ def agreement_rows(
     B: int = 10000,
 ) -> dict[str, Any]:
     """Computes agreement statistics on inner-joined rows by line_id."""
+    valid_decisions = {"accept", "escalate", "refuse"}
+    for r in first:
+        d = r.get("expected_decision")
+        if d is not None and d not in valid_decisions:
+            raise ValueError(f"LABEL_INVALID: first line_id={r.get('line_id')}")
+    for r in second:
+        d = r.get("expected_decision")
+        if d is not None and d not in valid_decisions:
+            raise ValueError(f"LABEL_INVALID: second line_id={r.get('line_id')}")
+
     m1 = {r["line_id"]: r for r in first if "line_id" in r}
     m2 = {r["line_id"]: r for r in second if "line_id" in r}
 
@@ -750,8 +760,9 @@ def canary_hits(guid: str, directories: Sequence[Path]) -> dict[str, Any]:
                 if cnt > 0:
                     matched_files[str(p)] = cnt
 
+    guid_prefix = hashlib.sha256(guid.encode("utf-8")).hexdigest()[:12]
     return {
-        "guid": guid,
+        "guid_sha256_prefix": guid_prefix,
         "matched_files": matched_files,
         "skipped_symlinks": skipped_symlinks,
         "skipped_oversize": skipped_oversize,
@@ -900,17 +911,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "overlap":
             dev_read = _safe_read_csv(args.dev_csv)
             if isinstance(dev_read, str):
+                if dev_read == "EMPTY_FILE":
+                    print("CSV_HEADER: --against")
+                    return 2
                 print(dev_read)
                 return 1
-            _, dev_rows = dev_read
+            dev_headers, dev_rows = dev_read
+            if "line_id" not in dev_headers or "raw_description" not in dev_headers:
+                print("CSV_HEADER: --against")
+                return 2
 
             inputs: list[list[dict[str, str]]] = []
-            for cp in args.csv_paths:
+            for idx, cp in enumerate(args.csv_paths):
                 in_read = _safe_read_csv(cp)
                 if isinstance(in_read, str):
+                    if in_read == "EMPTY_FILE":
+                        print(f"CSV_HEADER: input {idx + 1}")
+                        return 2
                     print(in_read)
                     return 1
-                inputs.append(in_read[1])
+                in_headers, in_rows = in_read
+                if "line_id" not in in_headers or "raw_description" not in in_headers:
+                    print(f"CSV_HEADER: input {idx + 1}")
+                    return 2
+                inputs.append(in_rows)
 
             res = overlap_rows(inputs, dev_rows)
 
@@ -957,13 +981,83 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "agreement":
             r1 = _safe_read_csv(args.first_csv)
             if isinstance(r1, str):
+                if r1 == "EMPTY_FILE":
+                    print("CSV_HEADER: first")
+                    return 2
                 print(r1)
                 return 1
+            h1, rows1 = r1
+            if "line_id" not in h1 or "expected_decision" not in h1:
+                print("CSV_HEADER: first")
+                return 2
+
             r2 = _safe_read_csv(args.second_csv)
             if isinstance(r2, str):
+                if r2 == "EMPTY_FILE":
+                    print("CSV_HEADER: second")
+                    return 2
                 print(r2)
                 return 1
-            res_agr = agreement_rows(r1[1], r2[1], seed=args.seed, B=args.B)
+            h2, rows2 = r2
+            if "line_id" not in h2 or "expected_decision" not in h2:
+                print("CSV_HEADER: second")
+                return 2
+
+            # Check duplicate line_ids in either file
+            seen1: set[str] = set()
+            dup1: list[str] = []
+            for r in rows1:
+                lid = r.get("line_id", "")
+                if lid in seen1:
+                    dup1.append(lid)
+                else:
+                    seen1.add(lid)
+
+            seen2: set[str] = set()
+            dup2: list[str] = []
+            for r in rows2:
+                lid = r.get("line_id", "")
+                if lid in seen2:
+                    dup2.append(lid)
+                else:
+                    seen2.add(lid)
+
+            if dup1 or dup2:
+                if dup1:
+                    print(f"DUPLICATE_ID: first (count={len(dup1)}, line_ids={', '.join(dup1)})")
+                if dup2:
+                    print(f"DUPLICATE_ID: second (count={len(dup2)}, line_ids={', '.join(dup2)})")
+                return 2
+
+            # Check label validity (exact match: accept, escalate, refuse)
+            valid_decisions = {"accept", "escalate", "refuse"}
+            invalid1 = [r.get("line_id", f"ROW_{i+1}") for i, r in enumerate(rows1) if r.get("expected_decision") not in valid_decisions]
+            invalid2 = [r.get("line_id", f"ROW_{i+1}") for i, r in enumerate(rows2) if r.get("expected_decision") not in valid_decisions]
+
+            if invalid1 or invalid2:
+                if invalid1:
+                    print(f"LABEL_INVALID: first (count={len(invalid1)}, line_ids={', '.join(invalid1)})")
+                if invalid2:
+                    print(f"LABEL_INVALID: second (count={len(invalid2)}, line_ids={', '.join(invalid2)})")
+                return 2
+
+            # Check accept pairs requiring expected_factor_id in headers
+            m1 = {r["line_id"]: r for r in rows1 if "line_id" in r}
+            m2 = {r["line_id"]: r for r in rows2 if "line_id" in r}
+            common_ids = set(m1.keys()) & set(m2.keys())
+            has_accept_pair = any(
+                m1[i].get("expected_decision") == "accept" and m2[i].get("expected_decision") == "accept"
+                for i in common_ids
+            )
+            if has_accept_pair:
+                if "expected_factor_id" not in h1:
+                    print("CSV_HEADER: first")
+                    return 2
+                if "expected_factor_id" not in h2:
+                    print("CSV_HEADER: second")
+                    return 2
+
+            res_agr = agreement_rows(rows1, rows2, seed=args.seed, B=args.B)
 
             print(f"first_count: {res_agr['first_count']}")
             print(f"second_count: {res_agr['second_count']}")
@@ -1005,7 +1099,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "canary-grep":
             dirs = [Path(d) for d in args.directories]
             res_grep = canary_hits(args.guid, dirs)
-            print(f"guid: {res_grep['guid']}")
+            print(f"guid_sha256_prefix: {res_grep['guid_sha256_prefix']}")
             print(f"matched_files_count: {len(res_grep['matched_files'])}")
             for mf, cnt in res_grep["matched_files"].items():
                 print(f"  {mf}: {cnt}")

@@ -656,8 +656,10 @@ def test_all_commands_redact_markers_and_row_labels(tmp_path, capsys):
     assert factor_marker not in cap.out and factor_marker not in cap.err
 
     # 5. canary-grep
-    gt.main(["canary-grep", "nonexistent-guid", str(tmp_path)])
+    canary_guid = "test-canary-guid-secret-marker-5555"
+    gt.main(["canary-grep", canary_guid, str(tmp_path)])
     cap = capsys.readouterr()
+    assert canary_guid not in cap.out and canary_guid not in cap.err
     assert secret_marker not in cap.out and secret_marker not in cap.err
     assert factor_marker not in cap.out and factor_marker not in cap.err
 
@@ -666,3 +668,147 @@ def test_all_commands_redact_markers_and_row_labels(tmp_path, capsys):
     cap = capsys.readouterr()
     assert secret_marker not in cap.out and secret_marker not in cap.err
     assert factor_marker not in cap.out and factor_marker not in cap.err
+
+
+def test_agreement_rejects_invalid_labels(tmp_path, capsys):
+    f1 = tmp_path / "f1.csv"
+    _write_csv(f1, ["line_id", "expected_decision"], [
+        {"line_id": "L-1", "expected_decision": "accept"},
+        {"line_id": "L-2", "expected_decision": "escalate"},
+        {"line_id": "L-3", "expected_decision": "refuse"},
+    ])
+
+    # Case 1: second file with one Accept (capital A)
+    f2_cap = tmp_path / "f2_cap.csv"
+    _write_csv(f2_cap, ["line_id", "expected_decision"], [
+        {"line_id": "L-1", "expected_decision": "Accept"},
+        {"line_id": "L-2", "expected_decision": "escalate"},
+        {"line_id": "L-3", "expected_decision": "refuse"},
+    ])
+    ret1 = gt.main(["agreement", str(f1), str(f2_cap), "--seed", "42"])
+    cap1 = capsys.readouterr()
+    assert ret1 == 2
+    assert "LABEL_INVALID" in cap1.out
+    assert "L-1" in cap1.out
+    assert "nominal_alpha" not in cap1.out
+
+    # Case 2: all-invalid labels (e.g. QQLEAKdec)
+    f2_all = tmp_path / "f2_all.csv"
+    _write_csv(f2_all, ["line_id", "expected_decision"], [
+        {"line_id": "L-1", "expected_decision": "QQLEAKdec"},
+        {"line_id": "L-2", "expected_decision": "QQLEAKdec"},
+        {"line_id": "L-3", "expected_decision": "QQLEAKdec"},
+    ])
+    ret2 = gt.main(["agreement", str(f1), str(f2_all), "--seed", "42"])
+    cap2 = capsys.readouterr()
+    assert ret2 == 2
+    assert "LABEL_INVALID" in cap2.out
+    assert "L-1" in cap2.out and "L-2" in cap2.out and "L-3" in cap2.out
+    assert "nominal_alpha" not in cap2.out
+
+    # Case 3: a missing label
+    f2_missing = tmp_path / "f2_missing.csv"
+    _write_csv(f2_missing, ["line_id", "expected_decision"], [
+        {"line_id": "L-1", "expected_decision": ""},
+        {"line_id": "L-2", "expected_decision": "escalate"},
+        {"line_id": "L-3", "expected_decision": "refuse"},
+    ])
+    ret3 = gt.main(["agreement", str(f1), str(f2_missing), "--seed", "42"])
+    cap3 = capsys.readouterr()
+    assert ret3 == 2
+    assert "LABEL_INVALID" in cap3.out
+    assert "L-1" in cap3.out
+    assert "nominal_alpha" not in cap3.out
+
+
+def test_agreement_and_overlap_reject_malformed_header(tmp_path, capsys):
+    empty_f = tmp_path / "empty.csv"
+    empty_f.write_text("", encoding="utf-8")
+
+    wrong_col_f = tmp_path / "wrong_cols.csv"
+    _write_csv(wrong_col_f, ["foo", "bar"], [{"foo": "1", "bar": "2"}])
+
+    valid_agr = tmp_path / "valid_agr.csv"
+    _write_csv(valid_agr, ["line_id", "expected_decision"], [
+        {"line_id": "L-1", "expected_decision": "escalate"},
+    ])
+
+    valid_over = tmp_path / "valid_over.csv"
+    _write_csv(valid_over, ["line_id", "raw_description"], [
+        {"line_id": "L-1", "raw_description": "some electricity desc"},
+    ])
+
+    # agreement: empty first
+    ret = gt.main(["agreement", str(empty_f), str(valid_agr), "--seed", "1"])
+    cap = capsys.readouterr()
+    assert ret == 2
+    assert "CSV_HEADER" in cap.out
+
+    # agreement: wrong column second
+    ret = gt.main(["agreement", str(valid_agr), str(wrong_col_f), "--seed", "1"])
+    cap = capsys.readouterr()
+    assert ret == 2
+    assert "CSV_HEADER" in cap.out
+
+    # overlap: empty input
+    ret = gt.main(["overlap", str(empty_f), "--against", str(valid_over)])
+    cap = capsys.readouterr()
+    assert ret == 2
+    assert "CSV_HEADER" in cap.out
+
+    # overlap: wrong column --against
+    ret = gt.main(["overlap", str(valid_over), "--against", str(wrong_col_f)])
+    cap = capsys.readouterr()
+    assert ret == 2
+    assert "CSV_HEADER" in cap.out
+
+    # overlap: wrong column input
+    ret = gt.main(["overlap", str(wrong_col_f), "--against", str(valid_over)])
+    cap = capsys.readouterr()
+    assert ret == 2
+    assert "CSV_HEADER" in cap.out
+
+
+def test_agreement_rejects_duplicate_ids(tmp_path, capsys):
+    f_dup = tmp_path / "dup.csv"
+    _write_csv(f_dup, ["line_id", "expected_decision"], [
+        {"line_id": "L-1", "expected_decision": "accept"},
+        {"line_id": "L-1", "expected_decision": "escalate"},
+    ])
+    f_valid = tmp_path / "valid.csv"
+    _write_csv(f_valid, ["line_id", "expected_decision"], [
+        {"line_id": "L-1", "expected_decision": "accept"},
+        {"line_id": "L-2", "expected_decision": "escalate"},
+    ])
+
+    # Duplicate in first
+    ret1 = gt.main(["agreement", str(f_dup), str(f_valid), "--seed", "1"])
+    cap1 = capsys.readouterr()
+    assert ret1 == 2
+    assert "DUPLICATE_ID" in cap1.out
+    assert "L-1" in cap1.out
+
+    # Duplicate in second
+    ret2 = gt.main(["agreement", str(f_valid), str(f_dup), "--seed", "1"])
+    cap2 = capsys.readouterr()
+    assert ret2 == 2
+    assert "DUPLICATE_ID" in cap2.out
+    assert "L-1" in cap2.out
+
+
+def test_canary_grep_does_not_echo_guid(tmp_path, capsys):
+    sub = tmp_path / "canary_dir"
+    sub.mkdir()
+    guid = "11223344-5566-7788-99aa-bbccddeeff00"
+    target_file = sub / "sample.txt"
+    target_file.write_text(f"Notice: {guid} is embedded here.\n", encoding="utf-8")
+
+    expected_prefix = hashlib.sha256(guid.encode("utf-8")).hexdigest()[:12]
+
+    ret = gt.main(["canary-grep", guid, str(sub)])
+    cap = capsys.readouterr()
+    assert ret == 0
+    assert guid not in cap.out and guid not in cap.err
+    assert f"guid_sha256_prefix: {expected_prefix}" in cap.out
+    assert "matched_files_count: 1" in cap.out
+    assert str(target_file) in cap.out
