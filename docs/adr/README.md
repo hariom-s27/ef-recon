@@ -8,3 +8,4 @@
 - [ADR-004 hash amendment](ADR-004-amendment-2026-10-23-hashes.md) — acceptance hashes, rules-only refusal correction and clarifications — ACCEPTED 2026-10-23
 - [ADR-004 amendment b](ADR-004-amendment-2026-10-23b-dev-duplicates.md) — grandfathered DEV template groups — ACCEPTED 2026-10-23
 - [ADR-004 amendment c](ADR-004-amendment-2026-10-23c-near-miss-column.md) — required TEST/VAL near-miss flag — ACCEPTED 2026-10-23
+- [ADR-004 amendment 2026-11-03](ADR-004-amendment-2026-11-03-audit-cluster-claims.md) — post-run label audit, cluster sensitivity CI, claim scope — ACCEPTED 2026-11-03

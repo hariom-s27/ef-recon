@@ -442,3 +442,136 @@ def test_grandfather_disclosure(cli, capsys):
                     "--run-at", STAMP]) == 0
     assert second.read_bytes() == first
     assert MARKER not in capsys.readouterr().out
+
+
+# ADR-004 amendment 2026-11-03 §1: cluster sensitivity CI (secondary, never the headline).
+# (author, stratum, sub-type, outcome) per row; sub-type = factor for A, rule for B, near_miss for C.
+CLUSTER_SPEC = [
+    ("A1", "A", "EF-A", "correct"), ("A1", "A", "EF-A", "correct"), ("A1", "A", "EF-A", "wrong"),
+    ("A1", "A", "EF-B", "correct"), ("A1", "A", "EF-B", "correct"),
+    ("A2", "A", "EF-A", "correct"), ("A2", "A", "EF-A", "needs_llm"),
+    ("A1", "B", "R-ESC-GAP", "correct"), ("A1", "B", "R-ESC-GAP", "correct"),
+    ("A1", "B", "R-ESC-UNIT", "wrong"),
+    ("A1", "C", "0", "correct"), ("A1", "C", "0", "correct"), ("A1", "C", "1", "correct"),
+    ("A2", "C", "1", "wrong"),
+    ("A1", "D", "EF-A", "needs_llm"),
+]
+
+
+def cluster_fixture(spec=CLUSTER_SPEC, *, near_miss_column=True):
+    """Synthetic gold rows and engine rows for summarize_v2; no engine, no file I/O."""
+    gold_rows, per_row = [], []
+    for number, (author, stratum, sub, outcome) in enumerate(spec, start=1):
+        gold = row(number, stratum, population="TEST", author=author,
+                   near=sub if stratum == "C" else "0",
+                   factor=sub if stratum in "AD" else "EF-A")
+        if stratum == "B":
+            gold["rule_id"] = sub
+        if not near_miss_column:
+            del gold["near_miss"]
+        expected = gold["expected_decision"]
+        decision = {"correct": expected, "wrong": "refuse" if expected != "refuse" else "escalate",
+                    "needs_llm": "needs_llm"}[outcome]
+        factor_id = gold["expected_factor_id"] if decision == "accept" else None
+        gold_rows.append(gold)
+        per_row.append({"line_id": gold["line_id"], "stratum": stratum, "rule_id": gold["rule_id"],
+                        "author": author, "decision": decision, "factor_id": factor_id,
+                        "outcome": outcome})
+    return per_row, gold_rows
+
+
+# Captured from the pre-change summarize_v2 (87d2f0e) on cluster_fixture(): headline must not move.
+PRE_CHANGE_SHA256 = "a39dd81b34b344e943101b047ba9545dbde07d01755e7ae08d4aee365b72bc4a"
+PRE_CHANGE_FIXED = {"ci95_wilson": [0.45350915670106806, 0.8827862135542308],
+                    "k": 10, "n": 14, "p": 0.7142857142857143}
+
+
+def cluster_result(spec=CLUSTER_SPEC, **kwargs):
+    return v2.summarize_v2(*cluster_fixture(spec, **kwargs), {})[v2.CLUSTER_KEY]
+
+
+def test_cluster_count_hand_fixture():
+    # A: (A1,EF-A) (A1,EF-B) (A2,EF-A); B: (A1,GAP) (A1,UNIT); C: (A1,0) (A1,1) (A2,1); D excluded.
+    value = cluster_result()
+    assert value["clusters"] == 8
+    assert (value["B"], value["seed"]) == (10000, 20261103)
+    assert value["method"] == "percentile cluster bootstrap"
+    assert value["note"] == "sensitivity check; few clusters (CGM 2008) — not the headline"
+
+
+def test_cluster_ci_deterministic():
+    first, second = cluster_result(), cluster_result()
+    assert first == second
+    # Pinned output of seed 20261103, B=10000 (= 5/11 and 12/13).
+    assert first["ci95"] == [0.45454545454545453, 0.9230769230769231]
+    lo, hi = first["ci95"]
+    assert 0.0 <= lo <= 10 / 14 <= hi <= 1.0
+
+
+def test_cluster_ci_all_correct():
+    spec = [(a, s, sub, "correct") for a, s, sub, _ in CLUSTER_SPEC]
+    value = cluster_result(spec)
+    assert value["ci95"] == [1.0, 1.0]
+    assert value["width_ratio_vs_wilson"] == 0.0 and value["materially_wider"] is False
+
+
+def test_cluster_ci_single_cluster_null():
+    value = cluster_result([("A1", "A", "EF-A", "correct"), ("A1", "A", "EF-A", "wrong")])
+    assert value["clusters"] == 1
+    assert value["ci95"] is None
+    assert value["width_ratio_vs_wilson"] is None and value["materially_wider"] is None
+
+
+def test_cluster_ci_two_extreme_clusters():
+    # Cluster means 1 and 0; each replicate is 0, 0.5 or 1, so the 2.5/97.5 percentiles are 0 and 1.
+    value = cluster_result([("A1", "A", "EF-A", "correct"), ("A2", "A", "EF-A", "wrong")])
+    assert value["clusters"] == 2
+    assert value["ci95"] == [0.0, 1.0]
+
+
+def test_cluster_subkey_blank_without_near_miss():
+    spec = [("A1", "C", "0", "correct"), ("A1", "C", "1", "wrong")]
+    per_row, gold = cluster_fixture(spec, near_miss_column=False)
+    assert all("near_miss" not in g for g in gold)
+    assert v2._cluster_id({**gold[0], **per_row[0]}) == ("A1", "C", "")
+    assert cluster_result(spec, near_miss_column=False)["clusters"] == 1
+    assert cluster_result(spec)["clusters"] == 2
+
+
+def test_headline_unchanged_by_cluster_ci():
+    result = v2.summarize_v2(*cluster_fixture(), {})
+    assert result[v2.FIXED] == PRE_CHANGE_FIXED
+    assert_metric(result[v2.FIXED], 10, 14)
+    previous = {key: value for key, value in result.items() if key != v2.CLUSTER_KEY}
+    assert set(result) - set(previous) == {v2.CLUSTER_KEY}
+    digest = hashlib.sha256(json.dumps(previous, sort_keys=True).encode()).hexdigest()
+    assert digest == PRE_CHANGE_SHA256
+
+
+def test_cluster_width_ratio_vs_wilson():
+    value = cluster_result()
+    wilson = PRE_CHANGE_FIXED["ci95_wilson"]
+    lo, hi = value["ci95"]
+    assert value["width_ratio_vs_wilson"] == pytest.approx((hi - lo) / (wilson[1] - wilson[0]))
+    assert value["materially_wider"] is (value["width_ratio_vs_wilson"] > 1.5)
+    # Two 10-row clusters, all correct vs all wrong: cluster CI [0, 1] vs Wilson ~0.42 wide.
+    spec = [("A1", "A", "EF-A", "correct")] * 10 + [("A2", "A", "EF-A", "wrong")] * 10
+    wide = cluster_result(spec)
+    assert wide["ci95"] == [0.0, 1.0]
+    assert wide["width_ratio_vs_wilson"] > 1.5 and wide["materially_wider"] is True
+
+
+def test_cluster_ci_in_dev_cli_scorecard(cli, capsys):
+    # Engine answers EF-B for "accept_wrong": right for row 2 (expects EF-B), wrong for row 5.
+    populate(cli, rows=[row(1), row(2, tag="accept_wrong", factor="EF-B", row_id="R-B"),
+                        row(3, "B", "escalate_right"), row(4, "C", "refuse_right"),
+                        row(5, tag="accept_wrong")])
+    assert run(cli) == 0
+    doc = json.loads(cli["out"].read_bytes())
+    value = doc["metrics"][v2.CLUSTER_KEY]
+    assert v2.CLUSTER_KEY == "determination_accuracy_gold_qty_unit_given__ABC_fixed_cluster_ci95"
+    assert value["clusters"] == 4 and len(value["ci95"]) == 2
+    assert set(value) == {"clusters", "B", "seed", "ci95", "method", "note",
+                          "width_ratio_vs_wilson", "materially_wider"}
+    assert_metric(doc["metrics"][v2.FIXED], 4, 5)
+    assert MARKER not in capsys.readouterr().out

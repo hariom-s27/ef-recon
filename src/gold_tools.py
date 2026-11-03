@@ -9,6 +9,7 @@ from collections import Counter, defaultdict
 import csv
 from decimal import Decimal
 import hashlib
+import json
 import math
 from pathlib import Path
 import random
@@ -62,6 +63,15 @@ GRANDFATHERED_DEV_GROUPS = (
     ("hsd #### l", ("DSL-0006", "DSL-0007")),
     ("torrent power kwh=##### kwh", ("ELEC-0007", "ELEC-0009")),
 )
+
+
+# Whole-token qualifiers; "_" counts as a separator so "US_gallon" stays qualified,
+# while "bus" or "impure" do not qualify a gallon.
+_GALLON_QUALIFIER = re.compile(r"(?<![a-z0-9])(?:us|u\.s\.|imperial|imp)(?![a-z0-9])", re.IGNORECASE)
+
+
+def _gallon_qualified(text: str) -> bool:
+    return _GALLON_QUALIFIER.search(text) is not None
 
 
 def normalise_description(text: str) -> str:
@@ -312,8 +322,8 @@ def validate_rows(
             raw_desc = row.get("raw_description", "").lower()
             unit_lower = unit_str.lower()
             is_unqualified_gallon = (
-                ("gallon" in unit_lower and "us" not in unit_lower and "imp" not in unit_lower)
-                or ("gallon" in raw_desc and rule_id == "R-ESC-UNIT" and "us" not in raw_desc and "imp" not in raw_desc)
+                ("gallon" in unit_lower and not _gallon_qualified(unit_lower))
+                or ("gallon" in raw_desc and rule_id == "R-ESC-UNIT" and not _gallon_qualified(raw_desc))
             )
             if is_unqualified_gallon and "gallon type unstated" not in rationale.lower():
                 errors.append((safe_id, "GALLON_TYPE_RATIONALE"))
@@ -782,17 +792,157 @@ def file_hashes(path: Path) -> dict[str, str]:
     }
 
 
+# ADR-004 amendment 2026-11-03 §2/§4: post-run TEST label audit.
+# Mirrors scorecard_v2.SCHEMA / FIXED (not imported: scorecard_v2 imports this module).
+SCORECARD_SCHEMA_ID = "efrecon-scorecard/3"
+ABC_FIXED_KEY = "determination_accuracy_gold_qty_unit_given__ABC_fixed"
+AUDIT_SEED = 20261103
+AUDIT_MIN = 20
+SCORECARD_ROW_KEYS = ("line_id", "stratum", "author", "decision", "factor_id", "outcome")
+CORRECTION_COLUMNS = ("line_id", "corrected_decision", "corrected_factor_id", "spec_rule")
+SPEC_RULE_DECISIONS = {
+    "R-ACC": "accept", "R-ESC-GAP": "escalate", "R-ESC-UNIT": "escalate",
+    "R-ESC-MIX": "escalate", "R-REF": "refuse",
+}
+_SAFE_ID = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def _load_scorecard(path_str: str) -> dict[str, Any] | str:
+    """Returns the parsed v2 scorecard, or a safe code; never echoes file content."""
+    try:
+        doc = json.loads(Path(path_str).read_text(encoding="utf-8-sig"))
+    except OSError:
+        return "FILE_READ_ERROR"
+    except ValueError:
+        return "SCORECARD_SCHEMA"
+    if not isinstance(doc, dict) or doc.get("schema") != SCORECARD_SCHEMA_ID:
+        return "SCORECARD_SCHEMA"
+    per_row = doc.get("per_row")
+    if not isinstance(per_row, list):
+        return "SCORECARD_SCHEMA"
+    seen: set[str] = set()
+    for row in per_row:
+        if not isinstance(row, dict) or any(key not in row for key in SCORECARD_ROW_KEYS):
+            return "SCORECARD_SCHEMA"
+        line_id = row["line_id"]
+        if not isinstance(line_id, str) or not _SAFE_ID.fullmatch(line_id) or line_id in seen:
+            return "SCORECARD_SCHEMA"
+        if row["outcome"] not in ("correct", "wrong", "needs_llm"):
+            return "SCORECARD_SCHEMA"
+        seen.add(line_id)
+    return doc
+
+
+def _abc_rows(per_row: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [r for r in per_row if r["stratum"] in ("A", "B", "C")]
+
+
+def audit_sets(
+    per_row: Sequence[dict[str, Any]],
+    seed: int = AUDIT_SEED,
+    minimum: int = AUDIT_MIN,
+) -> dict[str, list[str]]:
+    """D = A/B/C rows not correct (needs_llm included); S = seeded sample of correct A/B/C rows.
+
+    |S| = min(max(|D|, minimum), number of correct rows). The audit list is
+    sorted(D | S) shuffled with a fresh Random(seed), so membership is hidden.
+    """
+    abc = _abc_rows(per_row)
+    d_ids = sorted(r["line_id"] for r in abc if r["outcome"] != "correct")
+    correct_ids = sorted(r["line_id"] for r in abc if r["outcome"] == "correct")
+    k = min(max(len(d_ids), minimum), len(correct_ids))
+    s_ids = sorted(random.Random(seed).sample(correct_ids, k))
+    audit_ids = sorted(d_ids + s_ids)
+    random.Random(seed).shuffle(audit_ids)
+    return {"D": d_ids, "S": s_ids, "audit_ids": audit_ids}
+
+
+def validate_corrections(
+    headers: Sequence[str],
+    rows: Sequence[dict[str, str]],
+    audit_ids: set[str],
+) -> list[tuple[str, str]]:
+    """Returns (code, safe_id) errors; ids that are not plain identifiers become ROW_n."""
+    if list(headers) != list(CORRECTION_COLUMNS):
+        return [("CSV_HEADER", "")]
+    errors: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for idx, row in enumerate(rows):
+        line_id = row.get("line_id") or ""
+        safe_id = line_id if _SAFE_ID.fullmatch(line_id) else f"ROW_{idx + 1}"
+        codes: list[str] = []
+        if None in row or any(row.get(col) is None for col in CORRECTION_COLUMNS):
+            codes.append("CSV_HEADER")
+        if line_id in seen:
+            codes.append("DUPLICATE_ID")
+        elif line_id not in audit_ids:
+            codes.append("NOT_IN_AUDIT_LIST")
+        seen.add(line_id)
+        decision = row.get("corrected_decision") or ""
+        factor_id = row.get("corrected_factor_id") or ""
+        rule = row.get("spec_rule") or ""
+        if decision not in ("accept", "escalate", "refuse"):
+            codes.append("LABEL_INVALID")
+        elif (decision == "accept") != (factor_id != ""):
+            codes.append("LABEL_INVALID")
+        if rule not in SPEC_RULE_DECISIONS:
+            if "LABEL_INVALID" not in codes:
+                codes.append("LABEL_INVALID")
+        elif decision in ("accept", "escalate", "refuse") and SPEC_RULE_DECISIONS[rule] != decision:
+            codes.append("RULE_DECISION")
+        errors.extend((code, safe_id) for code in codes)
+    return errors
+
+
+def audit_apply_rows(
+    per_row: Sequence[dict[str, Any]],
+    corrections: Sequence[dict[str, str]],
+    seed: int = AUDIT_SEED,
+    minimum: int = AUDIT_MIN,
+) -> dict[str, Any]:
+    """As-labelled vs audited ABC-fixed accuracy; corrections must be pre-validated.
+
+    A corrected row is correct iff the engine decision equals corrected_decision and,
+    for accept, the engine factor equals corrected_factor_id. needs_llm stays wrong.
+    """
+    sets = audit_sets(per_row, seed=seed, minimum=minimum)
+    in_d, in_s = set(sets["D"]), set(sets["S"])
+    fixes = {r["line_id"]: r for r in corrections}
+    abc = _abc_rows(per_row)
+    k_labelled = sum(r["outcome"] == "correct" for r in abc)
+    k_audited = 0
+    for r in abc:
+        fix = fixes.get(r["line_id"])
+        if fix is None:
+            ok = r["outcome"] == "correct"
+        elif r["decision"] == "needs_llm":
+            ok = False
+        else:
+            ok = r["decision"] == fix["corrected_decision"] and (
+                fix["corrected_decision"] != "accept" or r["factor_id"] == fix["corrected_factor_id"])
+        k_audited += ok
+    n = len(abc)
+    return {
+        "as_labelled": {"k": k_labelled, "n": n, "ci95_wilson": _wilson_interval(k_labelled, n)},
+        "audited": {"k": k_audited, "n": n, "ci95_wilson": _wilson_interval(k_audited, n)},
+        "corrections_in_D": sum(i in in_d for i in fixes),
+        "corrections_in_S": sum(i in in_s for i in fixes),
+        "corrected_ids": sorted(fixes),
+    }
+
+
 def _safe_read_csv(path_str: str) -> tuple[list[str], list[dict[str, str]]] | str:
     path = Path(path_str)
     if not path.exists() or not path.is_file():
         return "FILE_READ_ERROR"
     try:
-        with open(path, "r", encoding="utf-8", newline="") as stream:
+        # utf-8-sig: Excel writes a BOM that would otherwise corrupt the first header.
+        with open(path, "r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.reader(stream)
             headers = next(reader, None)
             if headers is None:
                 return "EMPTY_FILE"
-        with open(path, "r", encoding="utf-8", newline="") as stream:
+        with open(path, "r", encoding="utf-8-sig", newline="") as stream:
             dict_reader = csv.DictReader(stream)
             rows = list(dict_reader)
             return list(headers), rows
@@ -843,6 +993,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     # sha256
     p_sha = subparsers.add_parser("sha256")
     p_sha.add_argument("file_path", type=str)
+
+    # audit-sample / audit-apply (ADR-004 amendment 2026-11-03)
+    p_as = subparsers.add_parser("audit-sample")
+    p_as.add_argument("scorecard_json", type=str)
+    p_as.add_argument("--seed", type=int, default=AUDIT_SEED)
+    p_as.add_argument("--min", dest="minimum", type=int, default=AUDIT_MIN)
+
+    p_aa = subparsers.add_parser("audit-apply")
+    p_aa.add_argument("scorecard_json", type=str)
+    p_aa.add_argument("corrections_csv", type=str)
+    p_aa.add_argument("--seed", type=int, default=AUDIT_SEED)
+    p_aa.add_argument("--min", dest="minimum", type=int, default=AUDIT_MIN)
 
     try:
         args = parser.parse_args(argv)
@@ -1116,6 +1278,75 @@ def main(argv: Sequence[str] | None = None) -> int:
             hashes = file_hashes(p)
             print(f"manifest_sha256 (raw bytes; use this in data/gold_manifest.json): {hashes['manifest_sha256']}")
             print(f"lf_sha256 (provenance only): {hashes['lf_sha256']}")
+            return 0
+
+        elif args.command in ("audit-sample", "audit-apply"):
+            if args.minimum < 0:
+                print("INVALID_ARGUMENTS")
+                return 2
+            doc = _load_scorecard(args.scorecard_json)
+            if isinstance(doc, str):
+                print(doc)
+                return 1 if doc == "FILE_READ_ERROR" else 2
+            per_row = doc["per_row"]
+
+            if args.command == "audit-sample":
+                sets = audit_sets(per_row, seed=args.seed, minimum=args.minimum)
+                print(f"n_D: {len(sets['D'])}")
+                print(f"n_S: {len(sets['S'])}")
+                print(f"n_total: {len(sets['audit_ids'])}")
+                print(f"seed: {args.seed}")
+                print("audit_ids:")
+                for aid in sets["audit_ids"]:
+                    print(aid)
+                return 0
+
+            # audit-apply: as-labelled must reproduce the scorecard headline exactly.
+            headline = doc.get("metrics", {}).get(ABC_FIXED_KEY) if isinstance(doc.get("metrics"), dict) else None
+            abc = _abc_rows(per_row)
+            if (
+                not isinstance(headline, dict)
+                or headline.get("k") != sum(r["outcome"] == "correct" for r in abc)
+                or headline.get("n") != len(abc)
+            ):
+                print("SCORECARD_SCHEMA detail=headline_mismatch")
+                return 2
+
+            c_read = _safe_read_csv(args.corrections_csv)
+            if isinstance(c_read, str):
+                if c_read == "EMPTY_FILE":
+                    print("CSV_HEADER")
+                    return 2
+                print(c_read)
+                return 1
+            c_headers, c_rows = c_read
+            sets = audit_sets(per_row, seed=args.seed, minimum=args.minimum)
+            errors = validate_corrections(c_headers, c_rows, set(sets["audit_ids"]))
+            if errors:
+                grouped: dict[str, list[str]] = defaultdict(list)
+                for code, sid in errors:
+                    grouped[code].append(sid)
+                for code in ("CSV_HEADER", "LABEL_INVALID", "RULE_DECISION", "NOT_IN_AUDIT_LIST", "DUPLICATE_ID"):
+                    if code not in grouped:
+                        continue
+                    ids = [sid for sid in grouped[code] if sid]
+                    if ids:
+                        print(f"{code}: count={len(ids)}, line_ids={', '.join(ids)}")
+                    else:
+                        print(code)
+                return 2
+
+            res_apply = audit_apply_rows(per_row, c_rows, seed=args.seed, minimum=args.minimum)
+            lab, aud = res_apply["as_labelled"], res_apply["audited"]
+            print(f"as_labelled: {lab['k']}/{lab['n']}")
+            print(f"as_labelled_ci95_wilson: {lab['ci95_wilson']}")
+            print(f"audited: {aud['k']}/{aud['n']}")
+            print(f"audited_ci95_wilson: {aud['ci95_wilson']}")
+            print(f"corrections_in_D: {res_apply['corrections_in_D']}")
+            print(f"corrections_in_S: {res_apply['corrections_in_S']}")
+            print("corrected_ids:")
+            for cid in res_apply["corrected_ids"]:
+                print(cid)
             return 0
 
     except Exception:
