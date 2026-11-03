@@ -812,3 +812,59 @@ def test_canary_grep_does_not_echo_guid(tmp_path, capsys):
     assert f"guid_sha256_prefix: {expected_prefix}" in cap.out
     assert "matched_files_count: 1" in cap.out
     assert str(target_file) in cap.out
+
+
+def test_bom_csv_matches_plain_for_all_readers(tmp_path, capsys):
+    # Excel writes EF BB BF; every CSV reader must treat it exactly like the plain file.
+    def pair(name, headers, rows):
+        plain = tmp_path / f"{name}.csv"
+        _write_csv(plain, headers, rows)
+        bom = tmp_path / f"{name}_bom.csv"
+        bom.write_bytes(b"\xef\xbb\xbf" + plain.read_bytes())
+        return plain, bom
+
+    test_plain, test_bom = pair("test", list(gt.HOLDOUT_COLUMNS), _build_synthetic_test_rows())
+    dev_plain, dev_bom = pair("dev", list(gt.DEV_COLUMNS), [])
+    fac_plain = tmp_path / "factors.csv"
+    shutil.copyfile(FACTORS_PATH, fac_plain)
+    fac_bom = tmp_path / "factors_bom.csv"
+    fac_bom.write_bytes(b"\xef\xbb\xbf" + fac_plain.read_bytes())
+
+    def run(t, d, f):
+        results = []
+        for argv in (
+            ["validate", str(t), "--set", "TEST", "--spec-sha", SPEC_SHA,
+             "--canary", CANARY_GUID, "--factors", str(f)],
+            ["overlap", str(t), "--against", str(d)],
+            ["drift-sample", str(t), "--author", "A1", "--seed", "7"],
+            ["agreement", str(t), str(t), "--seed", "7", "--B", "10"],
+        ):
+            ret = gt.main(argv)
+            results.append((argv[0], ret, capsys.readouterr().out))
+        return results
+
+    plain = run(test_plain, dev_plain, fac_plain)
+    assert plain[0][1] == 0 and "OK" in plain[0][2]
+    assert "k: 24" in plain[2][2]
+    assert run(test_bom, dev_bom, fac_bom) == plain
+
+
+@pytest.mark.parametrize("desc, unit, required", [
+    ("bus fuel 300 gallons", "gal", True),
+    ("diesel 300", "gallon", True),
+    ("300 US gallons", "US gallon", False),
+    ("300 imperial gal", "imperial gallon", False),
+    ("300 u.s. gallons", "gal", False),
+    ("impure fuel 300 gallons", "gal", True),
+], ids=["bus_fuel_no_qualifier", "unit_gallon_unqualified", "us_gallons",
+        "imperial_gal", "dotted_u_s", "impure_not_qualifier"])
+def test_gallon_rationale_qualifiers(desc, unit, required):
+    def codes(rationale):
+        r = _make_row("T-B-0001", "B", "escalate", qty="300", unit=unit, rationale=rationale)
+        r.update(raw_description=desc, rule_id="R-ESC-UNIT")
+        res = gt.validate_rows(list(gt.HOLDOUT_COLUMNS), [r], expected_set="TEST",
+                               spec_sha=SPEC_SHA, canary=CANARY_GUID, check_counts=False)
+        return [c for _, c in res["errors"]]
+
+    assert ("GALLON_TYPE_RATIONALE" in codes("Escalated: unit conversion needed.")) is required
+    assert codes("Escalated: gallon type unstated.") == []

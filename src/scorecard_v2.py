@@ -10,6 +10,7 @@ import io
 import json
 from pathlib import Path
 import platform
+import random
 import re
 import subprocess
 
@@ -42,6 +43,13 @@ META_KEYS = (
     "manifest_sha256", "shortfall", "headline_wilson_lower_below_0_90",
 )
 CLIENT_TZ = timezone(timedelta(hours=5, minutes=30))
+# ADR-004 amendment 2026-11-03 §1: secondary cluster sensitivity CI; Wilson stays the headline.
+CLUSTER_KEY = FIXED + "_cluster_ci95"
+CLUSTER_B = 10000
+CLUSTER_SEED = 20261103
+CLUSTER_METHOD = "percentile cluster bootstrap"
+CLUSTER_NOTE = "sensitivity check; few clusters (CGM 2008) — not the headline"
+CLUSTER_MATERIAL_RATIO = 1.5
 
 
 class InputRefused(ValueError):
@@ -255,6 +263,50 @@ def _weighted(weights, outcomes):
                                      if value["value_status"] == "TO_CONFIRM")}
 
 
+def _cluster_id(row: dict) -> tuple[str, str, str]:
+    """author x stratum x sub-type: factor for A, rule for B, near_miss for C (blank if absent)."""
+    field = {"A": "expected_factor_id", "B": "rule_id", "C": "near_miss"}[row["stratum"]]
+    return row["author"], row["stratum"], row.get(field, "")
+
+
+def _percentile_linear(values: list[float], position: float) -> float:
+    i = int(position)
+    if i + 1 < len(values):
+        return values[i] + (position - i) * (values[i + 1] - values[i])
+    return values[i]
+
+
+def cluster_bootstrap_ci(abc_rows: list[dict], *, wilson: list[float] | None = None,
+                         B: int = CLUSTER_B, seed: int = CLUSTER_SEED) -> dict:
+    """Resample whole clusters with replacement; statistic = total correct / total rows."""
+    totals = defaultdict(lambda: [0, 0])
+    for row in abc_rows:
+        entry = totals[_cluster_id(row)]
+        entry[0] += row["outcome"] == "correct"  # needs_llm counts as wrong
+        entry[1] += 1
+    clusters = [totals[key] for key in sorted(totals)]
+    count = len(clusters)
+    ci95 = None
+    if count >= 2:
+        rng = random.Random(seed)
+        stats = []
+        for _ in range(B):
+            drawn = [clusters[rng.randrange(count)] for _ in range(count)]
+            stats.append(sum(c for c, _ in drawn) / sum(n for _, n in drawn))
+        stats.sort()
+        ci95 = [_percentile_linear(stats, (B - 1) * 0.025),
+                _percentile_linear(stats, (B - 1) * 0.975)]
+    ratio = None
+    if ci95 is not None and wilson is not None and wilson[1] > wilson[0]:
+        ratio = (ci95[1] - ci95[0]) / (wilson[1] - wilson[0])
+    return {
+        "clusters": count, "B": B, "seed": seed, "ci95": ci95,
+        "method": CLUSTER_METHOD, "note": CLUSTER_NOTE,
+        "width_ratio_vs_wilson": ratio,
+        "materially_wider": None if ratio is None else ratio > CLUSTER_MATERIAL_RATIO,
+    }
+
+
 def summarize_v2(per_row: list[dict], gold_rows: list[dict], expected_weights: dict) -> dict:
     combined = [{**gold, **got} for gold, got in zip(gold_rows, per_row, strict=True)]
     abc = [row for row in combined if row["stratum"] in "ABC"]
@@ -279,6 +331,7 @@ def summarize_v2(per_row: list[dict], gold_rows: list[dict], expected_weights: d
         "per_rule_id": slice_metrics(abc, "rule_id"),
         "weighted": _weighted(expected_weights, {r["line_id"]: r["outcome"] for r in combined}),
     }
+    result[CLUSTER_KEY] = cluster_bootstrap_ci(abc, wilson=result[FIXED]["ci95_wilson"])
     for expected in ("escalate", "refuse"):
         group = [row for row in combined if row["expected_decision"] == expected]
         name = "escalation_recall" if expected == "escalate" else "refusal_recall"
