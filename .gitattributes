@@ -1,0 +1,8 @@
+# Force LF in every checkout so frozen-file hashes match git (ADR-004; P05d, 4 Nov 2026)
+* text=auto eol=lf
+*.pdf binary
+*.xlsx binary
+*.png binary
+*.jpg binary
+*.zip binary
+*.pkl binary
