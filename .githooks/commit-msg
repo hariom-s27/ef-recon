@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+MSG_FILE="$1"
+
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+    exit 0
+fi
+
+FILTERED=$(grep -v '^[[:space:]]*#' "$MSG_FILE" || true)
+
+if printf '%s\n' "$FILTERED" | grep -E -i -q '^(co-authored-by|assisted-by|generated-by|made-with):|generated with|noreply@anthropic\.com|noreply@openai\.com'; then
+    printf 'commit-msg: AI trailer or attribution found; remove it\n' >&2
+    exit 1
+fi
+
+ROBOT=$(printf '\360\237\244\226')
+if printf '%s\n' "$FILTERED" | grep -F -q "$ROBOT"; then
+    printf 'commit-msg: AI trailer or attribution found; remove it\n' >&2
+    exit 1
+fi
+
+exit 0

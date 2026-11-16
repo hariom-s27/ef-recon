@@ -1,0 +1,15 @@
+# Command rules for this repository. The owner changes git state and deletes files; agents never do.
+
+prefix_rule(
+    pattern = ["git", ["add", "commit", "push", "rebase", "reset", "clean", "merge", "stash", "checkout", "switch", "cherry-pick", "revert", "tag"]],
+    decision = "forbidden",
+    justification = "Only the owner changes git state. STOP and give the git add line and the one-line commit command instead.",
+    match = [["git", "push", "origin", "main"], ["git", "commit", "-m", "x"], ["git", "add", "."]],
+    not_match = [["git", "status"], ["git", "diff"], ["git", "log"]],
+)
+
+prefix_rule(
+    pattern = [["rm", "rmdir", "del", "Remove-Item"]],
+    decision = "forbidden",
+    justification = "Deleting files is a human step. STOP and list the files in your report instead.",
+)

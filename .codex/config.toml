@@ -1,0 +1,4 @@
+# Project settings for this repository. Codex loads this file only when the project is trusted.
+# Do NOT add sandbox_mode here: any sandbox_mode switches off the owner's permission profile
+# (the one that denies the sealed folders). The profile lives in the owner's user config.
+approval_policy = "on-request"

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "disableAutoMode": "disable",
+  "permissions": {
+    "defaultMode": "default",
+    "disableBypassPermissionsMode": "disable",
+    "blockReadsOutsideWorkingDirectories": true,
+    "deny": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git clean *)",
+      "Bash(git merge *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Edit(./data/gold_spec_v2.md)",
+      "Edit(./data/gold_dev_v2.csv)",
+      "Edit(./.gitattributes)",
+      "Edit(./output/scorecards/**)",
+      "Edit(./tests/test_line_endings.py)",
+      "Edit(./tests/test_seal_tripwire.py)",
+      "Edit(./docs/adr/ADR-001-amend-2026-10-22.md)",
+      "Edit(./docs/adr/ADR-001-block0-provisional-scorecard.md)",
+      "Edit(./docs/adr/ADR-002-mixed-basis-totals.md)",
+      "Edit(./docs/adr/ADR-003-factor-library-release-1.md)",
+      "Edit(./docs/adr/ADR-004-amendment-2026-10-23-hashes.md)",
+      "Edit(./docs/adr/ADR-004-amendment-2026-10-23b-dev-duplicates.md)",
+      "Edit(./docs/adr/ADR-004-amendment-2026-10-23c-near-miss-column.md)",
+      "Edit(./docs/adr/ADR-004-amendment-2026-11-03-audit-cluster-claims.md)",
+      "Edit(./docs/adr/ADR-004-gold-set-v2-split.md)"
+    ],
+    "ask": [
+      "Edit(./docs/adr/*)",
+      "Edit(./data/emission_factors.csv)",
+      "Edit(./AGENTS.md)",
+      "Edit(./CLAUDE.md)",
+      "Edit(./.claude/*)",
+      "Edit(./.codex/*)",
+      "Edit(./.githooks/*)"
+    ]
+  }
+}
